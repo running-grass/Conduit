@@ -18,7 +18,7 @@ message SetSchemaExtensionResponse {
 }
 
 message GetSchemaRequest {
-    string schemaName = 1;
+    string schema_name = 1;
 }
 
 message GetSchemaResponse {
@@ -37,25 +37,25 @@ message DropCollectionResponse{
 
 message Schema {
     string name = 1;
-    string modelSchema = 2;
-    string modelOptions = 3;
-    string collectionName = 4;
+    string model_schema = 2;
+    string model_options = 3;
+    string collection_name = 4;
 }
 
 message SchemaExtension {
     string name = 1;
-    string modelSchema = 2;
+    string model_schema = 2;
 }
 
 message FindOneRequest {
-    string schemaName = 1;
+    string schema_name = 1;
     string query = 2;
     optional string select = 3;
     repeated string populate = 4;
 }
 
 message FindRequest {
-    string schemaName = 1;
+    string schema_name = 1;
     string query = 2;
     optional string select = 3;
     optional int32 skip = 4;
@@ -69,28 +69,28 @@ message QueryResponse {
 }
 
 message QueryRequest {
-    string schemaName = 1;
+    string schema_name = 1;
     string query = 2;
 }
 
 message UpdateRequest {
-    string schemaName = 1;
+    string schema_name = 1;
     string id = 2;
     string query = 3;
-    optional bool updateProvidedOnly = 4;
+    optional bool update_provided_only = 4;
     repeated string populate = 5;
 }
 
 message UpdateManyRequest {
-    string schemaName = 1;
-    string filterQuery = 2;
+    string schema_name = 1;
+    string filter_query = 2;
     string query = 3;
-    optional bool updateProvidedOnly = 4;
+    optional bool update_provided_only = 4;
 }
 
 message DropCollectionRequest{
-    string schemaName = 1;
-    bool deleteData = 2;
+    string schema_name = 1;
+    bool delete_data = 2;
 }
 
 service DatabaseProvider {
@@ -100,13 +100,13 @@ service DatabaseProvider {
     rpc DeleteSchema(DropCollectionRequest) returns (DropCollectionResponse);
     rpc SetSchemaExtension(SetSchemaExtensionRequest) returns (CreateSchemaResponse);
     // Database queries
-    rpc findOne (FindOneRequest) returns (QueryResponse);
-    rpc findMany (FindRequest) returns (QueryResponse);
-    rpc create (QueryRequest) returns (QueryResponse);
-    rpc createMany(QueryRequest) returns (QueryResponse);
-    rpc deleteOne (QueryRequest) returns (QueryResponse);
-    rpc deleteMany (QueryRequest) returns (QueryResponse);
-    rpc findByIdAndUpdate (UpdateRequest) returns (QueryResponse);
-    rpc updateMany(UpdateManyRequest) returns (QueryResponse);
-    rpc countDocuments (QueryRequest) returns (QueryResponse);
+    rpc FindOne (FindOneRequest) returns (QueryResponse);
+    rpc FindMany (FindRequest) returns (QueryResponse);
+    rpc Create (QueryRequest) returns (QueryResponse);
+    rpc CreateMany(QueryRequest) returns (QueryResponse);
+    rpc DeleteOne (QueryRequest) returns (QueryResponse);
+    rpc DeleteMany (QueryRequest) returns (QueryResponse);
+    rpc FindByIdAndUpdate (UpdateRequest) returns (QueryResponse);
+    rpc UpdateMany(UpdateManyRequest) returns (QueryResponse);
+    rpc CountDocuments (QueryRequest) returns (QueryResponse);
 }

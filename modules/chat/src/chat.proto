@@ -2,11 +2,11 @@ syntax = "proto3";
 package chat;
 
 message SetConfigRequest {
-  string newConfig = 1;
+  string new_config = 1;
 }
 
 message SetConfigResponse {
-  string updatedConfig = 1;
+  string updated_config = 1;
 }
 
 message CreateRoomRequest {
@@ -16,8 +16,8 @@ message CreateRoomRequest {
 
 message SendMessageRequest {
   string message = 1;
-  string userId = 2;
-  string roomId = 3;
+  string user_id = 2;
+  string room_id = 3;
 }
 
 message DeleteRoomRequest {

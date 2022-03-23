@@ -2,11 +2,11 @@ syntax = "proto3";
 package forms;
 
 message SetConfigRequest {
-  string newConfig = 1;
+  string new_config = 1;
 }
 
 message SetConfigResponse {
-  string updatedConfig = 1;
+  string updated_config = 1;
 }
 
 service Forms {

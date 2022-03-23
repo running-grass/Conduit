@@ -2,29 +2,29 @@ syntax = 'proto3';
 package pushnotifications;
 
 message SetConfigRequest {
-  string newConfig = 1;
+  string new_config = 1;
 }
 
 message SetConfigResponse {
-  string updatedConfig = 1;
+  string updated_config = 1;
 }
 
 message SetNotificationTokenRequest {
   string token = 1;
   string platform = 2;
-  string userId = 3;
+  string user_id = 3;
 }
 
 message SetNotificationTokenResponse {
-  string newTokenDocument = 1;
+  string new_token_document = 1;
 }
 
 message GetNotificationTokensRequest {
-  string userId = 1;
+  string user_id = 1;
 }
 
 message GetNotificationTokensResponse {
-  repeated string tokenDocuments = 1;
+  repeated string token_documents = 1;
 }
 
 service PushNotifications {

@@ -2,11 +2,11 @@ syntax = 'proto3';
 package sms;
 
 message SetConfigRequest {
-  string newConfig = 1;
+  string new_config = 1;
 }
 
 message SetConfigResponse {
-  string updatedConfig = 1;
+  string updated_config = 1;
 }
 
 message SendSmsRequest {
@@ -23,11 +23,11 @@ message SendVerificationCodeRequest {
 }
 
 message SendVerificationCodeResponse {
-  string verificationSid = 1;
+  string verification_sid = 1;
 }
 
 message VerifyRequest {
-  string verificationSid = 1;
+  string verification_sid = 1;
   string code = 2;
 }
 

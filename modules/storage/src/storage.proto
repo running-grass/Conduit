@@ -2,11 +2,11 @@ syntax = "proto3";
 package storage;
 
 message SetConfigRequest {
-  string newConfig = 1;
+  string new_config = 1;
 }
 
 message SetConfigResponse {
-  string updatedConfig = 1;
+  string updated_config = 1;
 }
 
 message GetFileRequest {
@@ -15,15 +15,15 @@ message GetFileRequest {
 
 message CreateFileRequest {
   string name = 1;
-  string mimeType = 2;
+  string mime_type = 2;
   string data = 3;
   string folder = 4;
-  bool isPublic = 5;
+  bool is_public = 5;
 }
 
 message UpdateFileRequest {
   string name = 1;
-  string mimeType = 2;
+  string mime_type = 2;
   string data = 3;
   string folder = 4;
   string id = 5;
