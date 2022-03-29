@@ -13,6 +13,7 @@ export class GrpcServer {
     functions: { [name: string]: Function };
   }[] = [];
 
+
   constructor(port?: string) {
     this._url = `0.0.0.0:${ port ?? '5000' }`;
   }
@@ -30,10 +31,11 @@ export class GrpcServer {
     return serverResult.port;
   }
 
-  async addService(
+  async addService<T>(
     protoFilePath: string,
     protoDescription: string,
-    functions: { [name: string]: Function }
+    functions: { [name: string]: Function },
+    moduleServerInstance: any
   ): Promise<GrpcServer> {
     if (this._serviceNames.indexOf(protoDescription) !== -1) {
       console.log('Service already exists, performing replace');
@@ -55,7 +57,7 @@ export class GrpcServer {
         if (!this.grpcServer) {
           await this.wait(1000);
         }
-        addServiceToServer(this.grpcServer!, protoFilePath, protoDescription, functions);
+        addServiceToServer<T>(this.grpcServer!, protoFilePath, protoDescription, functions,moduleServerInstance);
         return this;
       }
     }
@@ -82,7 +84,8 @@ export class GrpcServer {
         this.grpcServer!,
         service.protoFilePath,
         service.protoDescription,
-        service.functions
+        service.functions,
+        5 as any,
       );
     });
     if (!this.started && this.startedOnce) {

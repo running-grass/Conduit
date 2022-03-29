@@ -47,7 +47,7 @@ export class ModuleManager {
 
   private async preRegisterLifecycle(): Promise<void> {
     await this.module.preServerStart();
-    await this.module.startGrpcServer(this.servicePort);
+    await this.module.startGrpcServer(this,this.servicePort);
     await this.module.onServerStart()
     await this.module.preRegister();
   }

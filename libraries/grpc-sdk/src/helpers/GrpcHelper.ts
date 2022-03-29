@@ -21,11 +21,12 @@ export function createServer(port: string): Promise<{ server: Server; port: numb
   });
 }
 
-export function addServiceToServer(
+export function addServiceToServer<T>(
   server: Server,
   protoFilePath: string,
   descriptorObject: string,
   functions: { [name: string]: Function },
+  moduleServerInstance: any,
 ) {
   let packageDefinition = protoLoader.loadSync(protoFilePath, {
       keepCase: true,
@@ -41,5 +42,5 @@ export function addServiceToServer(
     descObj = descObj[r] as any;
   });
   // @ts-ignore
-  server.addService(descObj.service, functions);
+  server.addService<T>(descObj.service, moduleServerInstance);
 }

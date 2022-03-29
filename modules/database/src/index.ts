@@ -1,5 +1,5 @@
 import { ModuleManager } from "@conduitplatform/grpc-sdk";
-import DatabaseModule from './Database';
+import {DatabaseServer} from "./DatabaseServer";
 
 const dbType = process.env.DB_TYPE ??
                process.env.databaseType ?? // Compat (<=0.12.2)
@@ -8,6 +8,6 @@ const dbUri = process.env.DB_CONN_URI ??
               process.env.databaseURL ?? // Compat (<=0.12.2)
               'mongodb://localhost:27017';
 
-const database = new DatabaseModule(dbType, dbUri);
+const database = new DatabaseServer(dbType, dbUri);
 const moduleManager = new ModuleManager(database);
 moduleManager.start();
