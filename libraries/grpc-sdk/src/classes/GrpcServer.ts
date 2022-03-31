@@ -1,9 +1,9 @@
 import { addServiceToServer, createServer } from '../helpers';
-import { Server } from '@grpc/grpc-js';
+import { Server } from 'nice-grpc'
 import { ManagedModule } from './ManagedModule';
 
 export class GrpcServer {
-  private grpcServer?: Server;
+  private grpcServer?: Server<{}>;
   private started: boolean = false;
   private startedOnce: boolean = false;
   private _serviceNames: string[] = [];
@@ -76,7 +76,7 @@ export class GrpcServer {
     if (this.started) {
       this.started = false;
       //gracefully shutdown so that there are no service disruption
-      await new Promise<void>((resolve) => this.grpcServer!.tryShutdown(() => resolve()));
+      await this.grpcServer!.shutdown();
     }
     await this.createNewServer();
     this._services.forEach((service) => {
@@ -87,10 +87,10 @@ export class GrpcServer {
         service.module
       );
     });
-    if (!this.started && this.startedOnce) {
-      this.grpcServer!.start();
-      this.started = true;
-    }
+    // if (!this.started && this.startedOnce) {
+    //   this.grpcServer!.start();
+    //   this.started = true;
+    // }
   }
 
   scheduleRefresh() {
@@ -114,6 +114,6 @@ export class GrpcServer {
     }
     this.started = true;
     this.startedOnce = true;
-    this.grpcServer?.start();
+    // this.grpcServer?.start();
   }
 }

@@ -62,6 +62,7 @@ export default class DatabaseModule extends ManagedModule {
       countDocuments: this.countDocuments.bind(this),
     } as ServiceImplementation<typeof DatabaseProviderDefinition>
   };
+  serviceDefinition = DatabaseProviderDefinition
 
   private adminRouter: AdminHandlers;
   private userRouter: DatabaseRoutes;

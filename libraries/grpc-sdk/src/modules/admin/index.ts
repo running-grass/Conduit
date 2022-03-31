@@ -55,7 +55,7 @@ export class Admin extends ConduitModule<typeof AdminDefinition> {
 
     let protoPath = path.resolve(__dirname, Math.random().toString(36).substring(7));
     fs.writeFileSync(protoPath, protoFile);
-    await server.addService(protoPath, this.moduleName + '.admin.Admin', undefined,modifiedFunctions);
+    await server.addService(protoPath, this.moduleName + '.admin.Admin', 5 as any);
     // fs.unlinkSync(protoPath);
 
     //added sleep as a precaution

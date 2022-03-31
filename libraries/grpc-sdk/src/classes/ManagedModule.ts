@@ -17,10 +17,9 @@ export abstract class ManagedModule extends ConduitServiceModule {
   serviceDefinition: any;
   service?: any;
 
-  protected constructor(moduleName: string, serviceDefinition?: any) {
+  protected constructor(moduleName: string) {
     moduleName = camelCase(moduleName);
     super();
-    this.serviceDefinition = serviceDefinition;
     this.name = moduleName;
   }
 
@@ -47,11 +46,11 @@ export abstract class ManagedModule extends ConduitServiceModule {
   async onConfig() {
   }
 
-  async startGrpcServer(moduleInstance: any, servicePort?: string) {
+  async startGrpcServer(moduleInstance: ManagedModule, servicePort?: string) {
     this.grpcServer = new GrpcServer(servicePort);
     this._port = (await this.grpcServer.createNewServer()).toString();
     if (this.service) {
-      await this.grpcServer.addService(this.service.protoPath, this.service.protoDescription, this,this.service.functions,this.serviceDefinition);
+      await this.grpcServer.addService(this.service.protoPath, this.service.protoDescription, moduleInstance);
       await this.grpcServer.start();
       console.log('Grpc server is online');
     }
