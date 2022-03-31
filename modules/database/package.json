@@ -15,19 +15,21 @@
   },
   "license": "ISC",
   "dependencies": {
-    "@grpc/grpc-js": "^1.5.2",
-    "@grpc/proto-loader": "^0.5.4",
     "@conduitplatform/grpc-sdk": "^1.0.1",
+    "@grpc/grpc-js": "^1.5.3",
+    "@grpc/proto-loader": "^0.5.4",
     "bson": "^4.2.2",
     "deepdash": "^5.0.3",
     "deepdash-es": "^5.0.3",
+    "escape-string-regexp": "^4.0.0",
+    "grpc-tools": "^1.11.2",
     "lodash": "^4.17.15",
     "mariadb": "^2.5.4",
     "mongodb-extended-json": "^1.11.0",
     "mongoose": "5.13.13",
-    "escape-string-regexp": "^4.0.0",
     "mongoose-deep-populate": "^3.2.0",
     "mysql2": "^2.3.0",
+    "nice-grpc": "^1.0.6",
     "pg": "^8.6.0",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.6.2",
@@ -46,7 +48,13 @@
   "devDependencies": {
     "@types/lodash": "^4.14.149",
     "copyfiles": "^2.2.0",
+    "grpc-tools": "^1.11.2",
     "rimraf": "^3.0.2",
+    "ts-proto": "^1.105.0",
     "typescript": "~4.2.0"
+  },
+  "peerDependencies": {
+    "@grpc/grpc-js": "^1.5.2",
+    "@grpc/proto-loader": "^0.6.9"
   }
 }

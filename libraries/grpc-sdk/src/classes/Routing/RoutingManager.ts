@@ -135,7 +135,7 @@ export class RoutingManager {
     let modifiedFunctions: { [name: string]: (call: any, callback: any) => void } = wrapFunctionsAsync(this._routeHandlers);
     let protoDescriptions = constructProtoFile(this._router.moduleName, Object.values(this._moduleRoutes));
     await this._server.addService(
-      protoDescriptions.path, protoDescriptions.name + '.router.Router',
+      protoDescriptions.path, protoDescriptions.name + '.router.Router',undefined,
       modifiedFunctions,
     );
     return this._router.register(Object.values(this._moduleRoutes), protoDescriptions.file);

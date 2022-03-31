@@ -1,5 +1,6 @@
 import { addServiceToServer, createServer } from '../helpers';
 import { Server } from '@grpc/grpc-js';
+import { ManagedModule } from './ManagedModule';
 
 export class GrpcServer {
   private grpcServer?: Server;
@@ -10,7 +11,7 @@ export class GrpcServer {
   private _services: {
     protoFilePath: string;
     protoDescription: string;
-    functions: { [name: string]: Function };
+    module: ManagedModule
   }[] = [];
 
 
@@ -31,23 +32,22 @@ export class GrpcServer {
     return serverResult.port;
   }
 
-  async addService<T>(
+  async addService(
     protoFilePath: string,
     protoDescription: string,
-    functions: { [name: string]: Function },
-    moduleServerInstance: any
+    module: ManagedModule,
   ): Promise<GrpcServer> {
     if (this._serviceNames.indexOf(protoDescription) !== -1) {
       console.log('Service already exists, performing replace');
       this._services[this._serviceNames.indexOf(protoDescription)] = {
         protoFilePath,
         protoDescription,
-        functions,
+        module,
       };
       this.scheduleRefresh();
       return this;
     } else {
-      this._services.push({ protoFilePath, protoDescription, functions });
+      this._services.push({ protoFilePath, protoDescription,module});
       this._serviceNames.push(protoDescription);
       if (this.started) {
         console.log('Server already started, scheduling refresh..');
@@ -57,7 +57,7 @@ export class GrpcServer {
         if (!this.grpcServer) {
           await this.wait(1000);
         }
-        addServiceToServer<T>(this.grpcServer!, protoFilePath, protoDescription, functions,moduleServerInstance);
+        addServiceToServer(this.grpcServer!, protoFilePath, protoDescription,module);
         return this;
       }
     }
@@ -84,8 +84,7 @@ export class GrpcServer {
         this.grpcServer!,
         service.protoFilePath,
         service.protoDescription,
-        service.functions,
-        5 as any,
+        service.module
       );
     });
     if (!this.started && this.startedOnce) {

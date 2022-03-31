@@ -1,4 +1,5 @@
 import { loadPackageDefinition, Server, ServerCredentials } from '@grpc/grpc-js';
+import { ManagedModule } from '../classes';
 
 const protoLoader = require('@grpc/proto-loader');
 
@@ -21,19 +22,18 @@ export function createServer(port: string): Promise<{ server: Server; port: numb
   });
 }
 
-export function addServiceToServer<T>(
+export function addServiceToServer(
   server: Server,
   protoFilePath: string,
   descriptorObject: string,
-  functions: { [name: string]: Function },
-  moduleServerInstance: any,
+  module: ManagedModule,
 ) {
   let packageDefinition = protoLoader.loadSync(protoFilePath, {
-      keepCase: true,
-      longs: String,
-      enums: String,
-      defaults: true,
-      oneofs: true,
+    keepCase: true,
+    longs: String,
+    enums: String,
+    defaults: true,
+    oneofs: true,
   });
   let protoDescriptor = loadPackageDefinition(packageDefinition);
   let objs = descriptorObject.split('.');
@@ -41,6 +41,7 @@ export function addServiceToServer<T>(
   objs.forEach((r: string) => {
     descObj = descObj[r] as any;
   });
+
   // @ts-ignore
-  server.addService<T>(descObj.service, moduleServerInstance);
+  server.addService(module.serviceDefinition, module.service);
 }
