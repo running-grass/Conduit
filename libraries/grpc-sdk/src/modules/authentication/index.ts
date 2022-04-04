@@ -5,6 +5,7 @@ import {
   UserCreateResponse,
   UserDeleteResponse,
   UserLoginResponse,
+  CreateRoleResponse,
 } from '../../protoUtils/authentication';
 
 export class Authentication extends ConduitModule<typeof AuthenticationDefinition> {
@@ -39,5 +40,9 @@ export class Authentication extends ConduitModule<typeof AuthenticationDefinitio
 
   changePass(email: string, password?: string): Promise<UserCreateResponse> {
     return this.client!.changePass({ email, password });
+  }
+
+  createRole(role: string): Promise<CreateRoleResponse> {
+    return this.client!.createRole({ role });
   }
 }

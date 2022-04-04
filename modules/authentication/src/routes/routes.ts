@@ -51,7 +51,7 @@ export class AuthenticationRoutes {
     this.localHandlers = new LocalHandlers(grpcSdk);
     this.serviceHandler = new ServiceHandler(grpcSdk);
     this.commonHandlers = new CommonHandlers(grpcSdk);
-    this.phoneHandlers = new PhoneHandlers(grpcSdk,this._routingManager);
+    this.phoneHandlers = new PhoneHandlers(grpcSdk, this._routingManager);
   }
 
   async registerRoutes() {
@@ -62,7 +62,7 @@ export class AuthenticationRoutes {
     let errorMessage = null;
     let phoneActive = await this.phoneHandlers
       .validate()
-      .catch((e:any ) => (errorMessage = e))
+      .catch((e: any) => (errorMessage = e));
 
     if (phoneActive && !errorMessage) {
       await this.phoneHandlers.declareRoutes();
@@ -393,7 +393,6 @@ export class AuthenticationRoutes {
         new ConduitRouteReturnDefinition('LogoutResponse', 'String'),
         this.commonHandlers.logOut.bind(this.commonHandlers),
       );
-
       this._routingManager.middleware({ path: '/', name: 'authMiddleware' }, this.middleware.bind(this));
     }
     return this._routingManager.registerRoutes()
