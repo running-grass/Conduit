@@ -31,6 +31,7 @@ import { FigmaSettings } from '../handlers/figma/figma.settings';
 import { MicrosoftHandlers } from '../handlers/microsoft/microsoft';
 import { MicrosoftSettings } from '../handlers/microsoft/microsoft.settings';
 import { PhoneHandlers } from '../handlers/phone';
+import { GroupHandlers } from '../handlers/groups';
 
 export class AuthenticationRoutes {
   private readonly localHandlers: LocalHandlers;
@@ -45,12 +46,14 @@ export class AuthenticationRoutes {
   private figmaHandlers: FigmaHandlers;
   private microsoftHandlers: MicrosoftHandlers;
   private _routingManager: RoutingManager;
+  private groupHandlers: GroupHandlers;
 
   constructor(readonly server: GrpcServer, private readonly grpcSdk: ConduitGrpcSdk) {
     this._routingManager = new RoutingManager(this.grpcSdk.router, server);
     this.localHandlers = new LocalHandlers(grpcSdk);
     this.serviceHandler = new ServiceHandler(grpcSdk);
     this.commonHandlers = new CommonHandlers(grpcSdk);
+    this.groupHandlers = new GroupHandlers(grpcSdk, this._routingManager);
     this.phoneHandlers = new PhoneHandlers(grpcSdk, this._routingManager);
   }
 
@@ -60,10 +63,17 @@ export class AuthenticationRoutes {
     this._routingManager.clear();
     let enabled = false;
     let errorMessage = null;
+
+    let groupsActive = await this.groupHandlers
+      .validate()
+      .catch((e: any) => (errorMessage = e));
+    if (groupsActive && !errorMessage) {
+      await this.groupHandlers.declareRoutes();
+    }
+
     let phoneActive = await this.phoneHandlers
       .validate()
       .catch((e: any) => (errorMessage = e));
-
     if (phoneActive && !errorMessage) {
       await this.phoneHandlers.declareRoutes();
     }
@@ -432,7 +442,6 @@ export class AuthenticationRoutes {
         'Token is expired or otherwise not valid',
       );
     }
-
     let user = await User.getInstance().findOne({
       _id: accessToken.userId,
     });

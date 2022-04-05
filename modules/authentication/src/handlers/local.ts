@@ -13,9 +13,10 @@ import ConduitGrpcSdk, {
   ConfigController,
 } from '@conduitplatform/grpc-sdk';
 import * as templates from '../templates';
-import { AccessToken, RefreshToken, Token, User } from '../models';
+import { AccessToken, RefreshToken, Role, Token, User } from '../models';
 import { status } from '@grpc/grpc-js';
 import moment = require('moment');
+import { RoleMembership } from '../models/RoleMembership.schema';
 
 export class LocalHandlers {
   private emailModule: Email;
@@ -84,7 +85,12 @@ export class LocalHandlers {
       hashedPassword,
       isVerified,
     });
+    const role = await Role.getInstance().findOne({ $and: [{ name: 'User' }, { group: null }] });
 
+    await RoleMembership.getInstance().create({
+      userId: user._id,
+      roleId: role!._id
+    });
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
     const config = ConfigController.getInstance().config;
@@ -157,7 +163,7 @@ export class LocalHandlers {
     }
 
     if (user.hasTwoFA) {
-      const verificationSid = await AuthUtils.sendVerificationCode(this.sms,user.phoneNumber!);
+      const verificationSid = await AuthUtils.sendVerificationCode(this.sms, user.phoneNumber!);
       if (verificationSid === '') {
         throw new GrpcError(status.INTERNAL, 'Could not send verification code');
       }
@@ -348,7 +354,7 @@ export class LocalHandlers {
     const hashedPassword = await AuthUtils.hashPassword(newPassword);
 
     if (dbUser.hasTwoFA) {
-      const verificationSid = await AuthUtils.sendVerificationCode(this.sms,dbUser.phoneNumber!);
+      const verificationSid = await AuthUtils.sendVerificationCode(this.sms, dbUser.phoneNumber!);
       if (verificationSid === '') {
         throw new GrpcError(status.INTERNAL, 'Could not send verification code');
       }
@@ -460,7 +466,7 @@ export class LocalHandlers {
 
     if (isNil(user)) throw new GrpcError(status.UNAUTHENTICATED, 'User not found');
 
-    return await AuthUtils.verifyCode(this.grpcSdk,clientId, user, TokenType.TWO_FA_VERIFICATION_TOKEN, code);
+    return await AuthUtils.verifyCode(this.grpcSdk, clientId, user, TokenType.TWO_FA_VERIFICATION_TOKEN, code);
   }
 
   async enableTwoFa(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
@@ -471,7 +477,7 @@ export class LocalHandlers {
       throw new GrpcError(status.UNAUTHENTICATED, 'Unauthorized');
     }
 
-    const verificationSid = await AuthUtils.sendVerificationCode(this.sms,phoneNumber);
+    const verificationSid = await AuthUtils.sendVerificationCode(this.sms, phoneNumber);
     if (verificationSid === '') {
       throw new GrpcError(status.INTERNAL, 'Could not send verification code');
     }

@@ -40,7 +40,7 @@ export class GroupMembership extends ConduitActiveSchema<GroupMembership> {
   private static _instance: GroupMembership;
   _id: string;
   userId: string | User
-  role: string[];
+  roles: string[];
   groupId: string | Group;
 
 
