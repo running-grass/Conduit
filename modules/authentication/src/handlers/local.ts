@@ -13,10 +13,9 @@ import ConduitGrpcSdk, {
   ConfigController,
 } from '@conduitplatform/grpc-sdk';
 import * as templates from '../templates';
-import { AccessToken, RefreshToken, Role, Token, User } from '../models';
+import { AccessToken, RefreshToken, Token, User } from '../models';
 import { status } from '@grpc/grpc-js';
 import moment = require('moment');
-import { RoleMembership } from '../models/RoleMembership.schema';
 
 export class LocalHandlers {
   private emailModule: Email;
@@ -85,12 +84,7 @@ export class LocalHandlers {
       hashedPassword,
       isVerified: false,
     });
-    const role = await Role.getInstance().findOne({ $and: [{ name: 'User' }, { group: null }] });
 
-    await RoleMembership.getInstance().create({
-      userId: user._id,
-      roleId: role!._id
-    });
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
     const config = ConfigController.getInstance().config;
@@ -617,5 +611,4 @@ export class LocalHandlers {
         console.error('Internal error while registering email templates');
       });
   }
-
 }
