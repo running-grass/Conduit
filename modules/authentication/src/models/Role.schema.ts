@@ -4,11 +4,55 @@ const schema = {
   _id: TYPE.ObjectId,
   name: {
     type: TYPE.String,
-    required: true
+    required: true,
+  },
+  groupId: {
+    type: TYPE.String,
+  },
+  permissions: {
+    user: {
+      canDelete: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
+      canReset: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
+      canInvite: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
+    },
+    group: {
+      canDelete: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
+      viewUsers: {
+        type: TYPE.Boolean,
+        default: true,
+        required: true,
+      },
+      viewGroups: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
+      manageUsers: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
+    },
   },
   createdAt: TYPE.Date,
   updatedAt: TYPE.Date,
-}
+};
 const schemaOptions = {
   timestamps: true,
   conduit: {
@@ -29,7 +73,19 @@ export class Role extends ConduitActiveSchema<Role> {
   name: string;
   createdAt: Date;
   updatedAt: Date;
-
+  permissions: {
+    user: {
+      canDelete: boolean;
+      canReset: boolean;
+      canInvite: boolean;
+    },
+    group: {
+      canDelete: boolean;
+      viewUsers: boolean;
+      viewGroups: boolean;
+      manageUser: boolean;
+    }
+  };
   constructor(database: DatabaseProvider) {
     super(database, Role.name, schema, schemaOptions, collectionName);
   }

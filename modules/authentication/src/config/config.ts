@@ -35,6 +35,12 @@ export default {
       default: '',
     },
   },
+  groups: {
+    enabled: {
+      format: 'Boolean',
+      default: false,
+    }
+  },
   google: {
     enabled: {
       format: 'Boolean',

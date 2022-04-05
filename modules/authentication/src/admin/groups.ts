@@ -30,7 +30,7 @@ export class GroupManager {
 
   async addGroupMembers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const memberships = call.request.params.memberships;
-    for (let membership of memberships) {
+    for (let membership of memberships) {   //checks
 
       const userId = membership.userId;
       const user = await User.getInstance().findOne({ _id: userId })
@@ -50,7 +50,10 @@ export class GroupManager {
         throw new GrpcError(status.NOT_FOUND, 'Group not found');
       }
 
-      const roles = membership.roles;
+      let roles = membership.roles;
+      if (isNil(roles)) {
+        roles = ['User'];
+      }
       const foundRoles = await Role.getInstance().countDocuments({ name: { $in: roles } });
       if (foundRoles === 0) {
         throw new GrpcError(status.ALREADY_EXISTS, `Some roles does not exist`);

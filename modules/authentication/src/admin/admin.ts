@@ -238,6 +238,7 @@ export class AdminHandlers {
           action: ConduitRouteActions.POST,
           bodyParams: {
             name: ConduitString.Required,
+            groupId: ConduitString.Optional,
           },
           name: 'CreateRole',
           description: 'Creates a new user role',
