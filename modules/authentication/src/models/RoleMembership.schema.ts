@@ -8,7 +8,7 @@ import { Role } from './Role.schema';
 
 const schema = {
   _id: TYPE.ObjectId,
-  userId: {
+  user: {
     type: TYPE.Relation,
     model: 'User',
     required: true,

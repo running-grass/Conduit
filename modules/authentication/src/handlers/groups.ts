@@ -18,9 +18,9 @@ export class GroupHandlers {
   async validate(): Promise<Boolean> {
     const config = ConfigController.getInstance().config;
     if (config.groups.enabled) {
-      Role.getInstance().findOne({ name: 'User'}).then((res) => {
+      Role.getInstance().findOne({ name: 'User' }).then((res) => {
         if (isNil(res)) {
-          Role.getInstance().create({ name: 'User', groupId: null }).then((role) => {
+          Role.getInstance().create({ name: 'User', group: '' }).then((role) => {
             console.log(`Groups and Roles are active`);
           });
         }
@@ -42,17 +42,59 @@ export class GroupHandlers {
         bodyParams: {
           groupId: ConduitString.Required,
           ids: [ConduitString.Required],
-          roles: [ConduitString.Optional],
         },
       },
       new ConduitRouteReturnDefinition('InviteResponse', 'String'),
       this.inviteUser.bind(this),
     );
+    this.routingManager.route(
+      {
+        path: '/group',
+        action: ConduitRouteActions.POST,
+        description: `Client creates a group`,
+        middlewares: ['authMiddleware'],
+        bodyParams: {
+          name: ConduitString.Required,
+        },
+      },
+      new ConduitRouteReturnDefinition('GroupResponse', Group.getInstance().fields),
+      this.createGroup.bind(this),
+    );
+  }
+
+  async createGroup(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+    const groupName = call.request.params.name;
+    const group = await Group.getInstance().findOne({ name: groupName })
+      .catch((e) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    if (!isNil(group)) {
+      throw new GrpcError(status.ALREADY_EXISTS, `Group ${groupName} already exists`);
+    }
+
+    const createdGroup = await Group.getInstance().create({
+      name: groupName,
+    });
+    const permissions = {
+      group: {
+        canDelete: true,
+        viewUsers: true,
+        viewGroups: true,
+        manageUsers: true,
+      }, // the user who creates the group  has admin rights
+    };
+    await Role.getInstance().create({
+      name: 'User',
+      group: createdGroup._id,
+      permissions: permissions,
+    }); // create a default Role in the group
+
+    return { createdGroup };
   }
 
   async inviteUser(call: ParsedRouterRequest) {
     // roles which invitor go to  give in the invited user
-    const { groupId, ids, roles } = call.request.params;
+    const { groupId, ids } = call.request.params;
     const invitor = call.request.context.user;
     const group = await Group.getInstance().findOne({ _id: groupId })
       .catch((e: Error) => {
@@ -72,7 +114,7 @@ export class GroupHandlers {
       if (canInvite) {
         const ret = [];
         for (const user of users) {
-          await GroupUtils.addGroupUser(user._id, groupId, roles);
+          await GroupUtils.addGroupUser(user._id, groupId);
         }
       }
     }).catch((err: any) => {

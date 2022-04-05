@@ -17,6 +17,7 @@ import { TokenType } from './constants/TokenType';
 import { v4 as uuid } from 'uuid';
 import moment from 'moment';
 import { migrateLocalAuthConfig } from './migrations/localAuthConfig.migration';
+import { Role } from './models';
 
 export default class Authentication extends ManagedModule {
   config = AppConfigSchema;
@@ -64,10 +65,18 @@ export default class Authentication extends ManagedModule {
       const modelInstance = model.getInstance(this.database);
       return this.database.createSchemaFromAdapter(modelInstance);
     });
+    Role.getInstance(this.database).findOne({ name: 'User' }).then((res) => {
+      if (isNil(res)) {
+        Role.getInstance().create({ name: 'User', group: '' }).then((role) => {
+          console.log(`User default Role created`);
+        });
+      }
+    })
     return Promise.all(promises);
   }
 
   async onConfig() {
+
     if (!this.isRunning) {
       await this.registerSchemas();
       this.adminRouter = new AdminHandlers(this.grpcServer, this.grpcSdk);

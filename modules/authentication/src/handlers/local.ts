@@ -13,9 +13,10 @@ import ConduitGrpcSdk, {
   ConfigController,
 } from '@conduitplatform/grpc-sdk';
 import * as templates from '../templates';
-import { AccessToken, RefreshToken, Token, User } from '../models';
+import { AccessToken, RefreshToken, Role, Token, User } from '../models';
 import { status } from '@grpc/grpc-js';
 import moment = require('moment');
+import { RoleMembership } from '../models/';
 
 export class LocalHandlers {
   private emailModule: Email;
@@ -84,6 +85,9 @@ export class LocalHandlers {
       hashedPassword,
       isVerified: false,
     });
+    const query = { $and: [{ name: 'User' }, { group: '' }] };
+    const role: any = await Role.getInstance().findOne(query);
+    await RoleMembership.getInstance().create({ user: user._id, roles: [role._id] });
 
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
@@ -431,7 +435,6 @@ export class LocalHandlers {
       _id: verificationTokenDoc.userId,
     });
     if (isNil(user)) throw new GrpcError(status.NOT_FOUND, 'User not found');
-
     user.isVerified = true;
     const userPromise: Promise<User | null> = User.getInstance().findByIdAndUpdate(
       user._id,
@@ -460,7 +463,7 @@ export class LocalHandlers {
 
     if (isNil(user)) throw new GrpcError(status.UNAUTHENTICATED, 'User not found');
 
-    return await AuthUtils.verifyCode(this.grpcSdk,clientId, user, TokenType.TWO_FA_VERIFICATION_TOKEN, code);
+    return await AuthUtils.verifyCode(this.grpcSdk, clientId, user, TokenType.TWO_FA_VERIFICATION_TOKEN, code);
   }
 
   async enableTwoFa(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {

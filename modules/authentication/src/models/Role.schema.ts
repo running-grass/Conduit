@@ -6,7 +6,7 @@ const schema = {
     type: TYPE.String,
     required: true,
   },
-  groupId: {
+  group: {
     type: TYPE.String,
   },
   permissions: {
@@ -71,6 +71,7 @@ export class Role extends ConduitActiveSchema<Role> {
   private static _instance: Role;
   _id: string;
   name: string;
+  group: string;
   createdAt: Date;
   updatedAt: Date;
   permissions: {

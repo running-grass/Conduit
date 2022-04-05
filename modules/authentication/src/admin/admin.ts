@@ -10,7 +10,7 @@ import ConduitGrpcSdk, {
   ConduitString,
   ConduitNumber,
   ConduitBoolean,
-  TYPE,
+  TYPE, ConduitJson,
 } from '@conduitplatform/grpc-sdk';
 import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
@@ -52,6 +52,7 @@ export class AdminHandlers {
         renewServiceToken: this.serviceAdmin.renewToken.bind(this),
         createRole: this.roleManager.createRole.bind(this),
         createGroup: this.groupManager.createGroup.bind(this),
+        getGroupMemberships: this.groupManager.getGroupMemberships.bind(this),
         addGroupMembers: this.groupManager.addGroupMembers.bind(this),
       })
       .catch((err: Error) => {
@@ -269,6 +270,22 @@ export class AdminHandlers {
         },
         new ConduitRouteReturnDefinition('AddGroupMemberships', GroupMembership.getInstance().fields),
         'addGroupMembers',
+      ),
+      constructConduitRoute(
+        {
+          path: '/group/memberships',
+          action: ConduitRouteActions.GET,
+          bodyParams: {
+            groupId: ConduitString.Optional,
+          },
+          name: 'GetGroupMemberships',
+          description: 'Creating group memberships',
+        },
+        new ConduitRouteReturnDefinition('GetGroupMemberships', {
+         memberships: ConduitJson.Required,
+         count: ConduitNumber.Required,
+        }),
+        'getGroupMemberships',
       ),
     ];
   }

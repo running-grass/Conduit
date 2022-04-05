@@ -8,7 +8,7 @@ import { Group } from './Group.schema';
 
 const schema = {
   _id: TYPE.ObjectId,
-    userId: {
+    user: {
       type: TYPE.Relation,
       model: 'User',
       required: true,
@@ -17,7 +17,7 @@ const schema = {
       type: [TYPE.String],
       required: true,
     },
-    groupId: {
+    group: {
       type: TYPE.Relation,
       model: 'Group',
       required: true,
@@ -39,9 +39,9 @@ const collectionName = undefined;
 export class GroupMembership extends ConduitActiveSchema<GroupMembership> {
   private static _instance: GroupMembership;
   _id: string;
-  userId: string | User
+  user: string | User
   roles: string[];
-  groupId: string | Group;
+  group: string | Group;
 
 
   private constructor(database: DatabaseProvider) {

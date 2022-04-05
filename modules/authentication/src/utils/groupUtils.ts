@@ -4,18 +4,18 @@ import { RoleMembership } from '../models/RoleMembership.schema';
 
 export namespace GroupUtils {
 
-  export async function addGroupUser(userId: string, groupId: string, roles?: string[]) {
+  export async function addGroupUser(userId: string, groupId: string) {
     const membership = {
-      userId: userId,
-      role: roles ?? [],
-      groupId: groupId,
+      user: userId,
+      roles: ['User'],
+      group: groupId,
     };
     const groupMembership = await GroupMembership.getInstance().create(membership);
     return groupMembership;
   }
 
   export async function isGroupMember(userId: string, groupId: string) {
-    let query = { $and: [{ userId: userId }, { groupId: groupId }] };
+    let query = { $and: [{ user: userId }, { group: groupId }] };
     const member = await GroupMembership.getInstance().findOne(query);
 
     if (isNil(member)) return false;
@@ -30,7 +30,7 @@ export namespace GroupUtils {
   export async function checkPermissions(userId: string, groupId: string, permission: string): Promise<boolean> {
     let canOperate = true;
     if (!isGroupMember(userId, groupId)) {
-      const roleMemberships: any = await RoleMembership.getInstance().findOne({ userId: userId });
+      const roleMemberships: any = await RoleMembership.getInstance().findOne({ user: userId });
       if (isNil(roleMemberships)) {  //
         throw new Error('You do not have the appropriate role to invite');
       }
@@ -46,5 +46,16 @@ export namespace GroupUtils {
     return canOperate;
   }
 
+  export function populateArray(pop: any) {
+    if (!pop) return pop;
+    if (pop.indexOf(',') !== -1) {
+      pop = pop.split(',');
+    } else if (Array.isArray(pop)) {
+      return pop;
+    } else {
+      pop = [pop];
+    }
+    return pop;
+  }
 
 }
