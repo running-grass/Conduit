@@ -30,7 +30,7 @@ export class GroupManager {
 
     const role = await Role.getInstance().findOne({ $and: [{ name: 'User' }, { group: createdGroup._id }] });  //default User role
     if (isNil(role)) {
-      await Role.getInstance().create({ name: 'User', group: createdGroup._id });
+      await Role.getInstance().create({ name: 'User', group: createdGroup.name });
     }
 
     return { createdGroup };
@@ -38,9 +38,10 @@ export class GroupManager {
 
   async addGroupMembers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const memberships = call.request.params.memberships;
+    const retMemberships = [];
     for (let membership of memberships) {   //checks
 
-      const userId = membership.userId;
+      const userId = membership.user;
       const user = await User.getInstance().findOne({ _id: userId })
         .catch((e: Error) => {
           throw new GrpcError(status.INTERNAL, e.message);
@@ -49,7 +50,7 @@ export class GroupManager {
         throw new GrpcError(status.NOT_FOUND, 'User not found');
       }
 
-      const groupId = membership.groupId;
+      const groupId = membership.group;
       const group = await Group.getInstance().findOne({ _id: groupId })
         .catch((e: Error) => {
           throw new GrpcError(status.INTERNAL, e.message);
@@ -67,14 +68,17 @@ export class GroupManager {
         throw new GrpcError(status.ALREADY_EXISTS, `Some roles does not exist`);
       }
 
-      const query = { $and: [{ user: userId }, { group: groupId }, { roles: { $in: roles } }] };
+      const query = { $and: [{ user: userId }, { group: groupId }] };
       const count = await GroupMembership.getInstance().countDocuments(query);
       if (count > 0) {
         throw new GrpcError(status.ALREADY_EXISTS, `Membership already exists`);
       }
+      membership.roles = ['User'];
+      const createdMembership = await GroupMembership.getInstance().create(membership);
+      retMemberships.push(createdMembership);
     }
-    const createdMemberships = await GroupMembership.getInstance().createMany(memberships);
-    return { createdMemberships };
+
+    return { retMemberships };
   }
 
   async getGroupMemberships(call: ParsedRouterRequest) {
