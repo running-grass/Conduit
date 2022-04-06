@@ -1,9 +1,10 @@
 import ConduitGrpcSdk, {
+  ConduitNumber,
   ConduitRouteActions, ConduitRouteReturnDefinition, ConduitString,
   ConfigController, GrpcError, ParsedRouterRequest,
   RoutingManager, UnparsedRouterResponse,
 } from '@conduitplatform/grpc-sdk';
-import { Group, Role, User } from '../models';
+import { Group, GroupMembership, Role, User } from '../models';
 import { isNil } from 'lodash';
 import { status } from '@grpc/grpc-js';
 import { GroupUtils } from '../utils/groupUtils';
@@ -49,6 +50,26 @@ export class GroupHandlers {
     );
     this.routingManager.route(
       {
+        path: '/group/users',
+        action: ConduitRouteActions.GET,
+        description: `A client lists all the members of the groups that he belongs to if he has the permission to do this.`,
+        queryParams: {
+          groupId: ConduitString.Optional,
+          skip: ConduitNumber.Optional,
+          limit: ConduitNumber.Optional,
+          sort: ConduitString.Optional,
+          //search: ConduitString.Optional,
+        },
+        middlewares: ['authMiddleware'],
+      },
+      new ConduitRouteReturnDefinition('GetGroupUsers', {
+        users: [User.getInstance().fields],
+        count: ConduitNumber.Required,
+      }),
+      this.getGroupUsers.bind(this),
+    );
+    this.routingManager.route(
+      {
         path: '/group',
         action: ConduitRouteActions.POST,
         description: `Client creates a group`,
@@ -60,6 +81,54 @@ export class GroupHandlers {
       new ConduitRouteReturnDefinition('GroupResponse', Group.getInstance().fields),
       this.createGroup.bind(this),
     );
+  }
+
+  async getGroupUsers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+    const { user } = call.request.context;
+    const { groupId, sort } = call.request.params;
+    const { skip } = call.request.params ?? 0;
+    const { limit } = call.request.params ?? 25;
+
+    const group = await Group.getInstance().findOne({ _id: groupId });
+    if (isNil(group)) {
+      throw new GrpcError(status.NOT_FOUND, 'Group not found');
+    }
+
+    const membership = await GroupMembership.getInstance().findOne({
+      group: groupId,
+      user: user._id,
+    });
+    // TODO Check if a user isn't member of a group if he can see the users of a group.
+    if (isNil(membership)) {
+      throw new GrpcError(status.PERMISSION_DENIED, 'You can not see the members of the group');
+    }
+
+    const roles: Role[] = await Role.getInstance().findMany({ name: { $in: membership.roles } });
+    let canListUsers = false;
+    for (const role of roles) {
+      const groupRole = await Role.getInstance().findOne({
+        group: group.name,
+        name: role.name,
+      });
+      if (groupRole!.permissions.group.viewUsers) {
+        canListUsers = true;
+        break;
+      }
+    }
+    if (!canListUsers) {
+      throw new GrpcError(status.PERMISSION_DENIED, 'You do not have the appropriate permissions to list the users');
+    }
+
+    const groupUsers = await GroupMembership.getInstance().findMany(
+      { group: groupId },
+      'user',
+      skip,
+      limit,
+      sort,
+      ['user'],
+    );
+    const count = groupUsers.length;
+    return { groupUsers, count };
   }
 
   async createGroup(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
@@ -75,6 +144,7 @@ export class GroupHandlers {
     const createdGroup = await Group.getInstance().create({
       name: groupName,
     });
+
     const permissions = {
       group: {
         canDelete: true,
@@ -84,10 +154,27 @@ export class GroupHandlers {
       }, // the user who creates the group  has admin rights
     };
     await Role.getInstance().create({
-      name: 'User',
-      group: createdGroup._id,
+      name: 'Owner',
+      group: groupName,
       permissions: permissions,
     }); // create a default Role in the group
+
+    const role = await Role.getInstance().create({
+      name: 'User',
+      group: groupName,
+    });
+    if (isNil(role)) {
+      await Role.getInstance().create({
+        name: 'User',
+        group: groupName,
+      }); // create a default Role in the group
+    }
+
+    await GroupMembership.getInstance().create({
+      user: call.request.context.user._id,
+      group: createdGroup._id,
+      roles: ['Owner'],
+    });
 
     return { createdGroup };
   }
@@ -123,6 +210,5 @@ export class GroupHandlers {
 
     return 'Invite has been sent';
   }
-
 
 }
