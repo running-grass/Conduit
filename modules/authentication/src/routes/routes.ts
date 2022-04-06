@@ -70,13 +70,7 @@ export class AuthenticationRoutes {
 
     if (phoneActive && !errorMessage) {
       await this.phoneHandlers.declareRoutes();
-    }
-    let groupActive = await this.groupHandlers
-      .validate()
-      .catch((e: any) => (errorMessage = e));
-
-    if (groupActive && !errorMessage) {
-      await this.groupHandlers.declareRoutes();
+      enabled = true;
     }
 
     let authActive = await this.localHandlers
@@ -187,7 +181,6 @@ export class AuthenticationRoutes {
         new ConduitRouteReturnDefinition('VerifyEmailResponse', 'String'),
         this.localHandlers.verifyEmail.bind(this.localHandlers),
       );
-
       if (authConfig?.twofa.enabled) {
         this._routingManager.route(
           {
@@ -274,6 +267,15 @@ export class AuthenticationRoutes {
       .catch((e: any) => (errorMessage = e));
     if (!errorMessage && authActive) {
       this.facebookHandlers.declareRoutes();
+      enabled = true;
+    }
+
+    errorMessage = null;
+    authActive = await this.groupHandlers
+      .validate()
+      .catch((e: any) => (errorMessage = e));
+    if (!errorMessage && authActive) {
+      this.groupHandlers.declareRoutes();
       enabled = true;
     }
 

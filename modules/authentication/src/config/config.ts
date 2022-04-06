@@ -30,12 +30,6 @@ export default {
       default: '',
     },
   },
-  groups: {
-    enabled: {
-      format: 'Boolean',
-      default: false,
-    }
-  },
   google: {
     enabled: {
       format: 'Boolean',
@@ -222,6 +216,12 @@ export default {
     },
   },
   twofa: {
+    enabled: {
+      format: 'Boolean',
+      default: false,
+    },
+  },
+  groups: {
     enabled: {
       format: 'Boolean',
       default: false,

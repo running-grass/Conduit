@@ -18,14 +18,12 @@ export class GroupHandlers {
 
   async validate(): Promise<Boolean> {
     const config = ConfigController.getInstance().config;
-    if (config.groups.enabled) {
-      Role.getInstance().findOne({ name: 'User' }).then((res) => {
-        if (isNil(res)) {
-          Role.getInstance().create({ name: 'User', group: '' }).then((role) => {
-            console.log(`Groups and Roles are active`);
-          });
-        }
-      });
+    if (config.local.enabled && config.groups.enabled) {
+      console.log(`Groups and Roles are active`);
+      const role = await Role.getInstance().findOne({ name: 'User', group: '' });
+      if (isNil(role))
+        await Role.getInstance().create({ name: 'User', group: '' });
+
       return true;
     } else {
       console.log('Groups and Roles not active');
@@ -33,7 +31,7 @@ export class GroupHandlers {
     }
   }
 
-  async declareRoutes() {
+  declareRoutes() {
     this.routingManager.route(
       {
         path: '/group/invite',

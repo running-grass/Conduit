@@ -65,13 +65,6 @@ export default class Authentication extends ManagedModule {
       const modelInstance = model.getInstance(this.database);
       return this.database.createSchemaFromAdapter(modelInstance);
     });
-    Role.getInstance(this.database).findOne({ name: 'User' }).then((res) => {
-      if (isNil(res)) {
-        Role.getInstance().create({ name: 'User', group: '' }).then((role) => {
-          console.log(`User default Role created`);
-        });
-      }
-    })
     return Promise.all(promises);
   }
 

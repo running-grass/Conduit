@@ -6,8 +6,8 @@ import ConduitGrpcSdk, {
 import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
 import { User, Role, Group, GroupMembership } from '../models';
-import { populateArray } from '@conduit/chat/dist/utils';
 import escapeStringRegexp from 'escape-string-regexp';
+import { GroupUtils } from '../utils/groupUtils';
 
 
 export class GroupManager {
@@ -88,7 +88,7 @@ export class GroupManager {
     const { groupId } = call.request.params;
     let { sort, populate } = call.request.params;
     if (!isNil(populate)) {
-      populate = populateArray(populate);
+      populate = GroupUtils.populateArray(populate);
     }
     const group = await Group.getInstance().findOne({ _id: groupId });
     if (isNil(group)) {
