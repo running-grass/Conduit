@@ -51,6 +51,8 @@ export class AdminHandlers {
         deleteService: this.serviceAdmin.deleteService.bind(this),
         renewServiceToken: this.serviceAdmin.renewToken.bind(this),
         createRole: this.roleManager.createRole.bind(this),
+        patchRole: this.roleManager.patchRole.bind(this),
+        getRoles: this.roleManager.getRoles.bind(this),
         createGroup: this.groupManager.createGroup.bind(this),
         getGroupMemberships: this.groupManager.getGroupMemberships.bind(this),
         addGroupMembers: this.groupManager.addGroupMembers.bind(this),
@@ -233,6 +235,23 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
+          path: '/roles',
+          action: ConduitRouteActions.GET,
+          queryParams: {
+            skip: ConduitNumber.Optional,
+            limit: ConduitNumber.Optional,
+            search: ConduitString.Optional,
+            sort: ConduitString.Optional,
+            groupNames: { type: [TYPE.String], required: false },
+          },
+          name: 'GetRoles',
+          description: 'Fetching Roles',
+        },
+        new ConduitRouteReturnDefinition('GetRoles', Role.getInstance().fields),
+        'getRoles',
+      ),
+      constructConduitRoute(
+        {
           path: '/role',
           action: ConduitRouteActions.POST,
           bodyParams: {
@@ -244,6 +263,26 @@ export class AdminHandlers {
         },
         new ConduitRouteReturnDefinition('CreateRole', Role.getInstance().fields),
         'createRole',
+      ),
+      constructConduitRoute(
+        {
+          path: '/role/:id',
+          action: ConduitRouteActions.PATCH,
+          urlParams: {
+            id: { type: RouteOptionType.String, required: true }
+          },
+          bodyParams: {
+            name: ConduitString.Optional,
+            permissions: {
+              user: { type: TYPE.JSON, required: false },
+              group: { type: TYPE.JSON, required: false },
+            }
+          },
+          name: 'PatchRole',
+          description: 'Patch a role',
+        },
+        new ConduitRouteReturnDefinition('PatchRole', Role.getInstance().fields),
+        'patchRole',
       ),
       constructConduitRoute(
         {
@@ -275,7 +314,7 @@ export class AdminHandlers {
         {
           path: '/group/memberships',
           action: ConduitRouteActions.GET,
-          bodyParams: {
+          queryParams: {
             groupId: ConduitString.Optional,
           },
           name: 'GetGroupMemberships',

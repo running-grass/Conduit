@@ -5,8 +5,10 @@ import ConduitGrpcSdk, {
 } from '@conduitplatform/grpc-sdk';
 import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
-import { Role, User } from '../models';
+import { Role } from '../models';
 import { Group } from '../models/Group.schema';
+import { merge } from 'lodash';
+import escapeStringRegexp from 'escape-string-regexp';
 
 export class RoleManager {
 
@@ -16,7 +18,7 @@ export class RoleManager {
   async createRole(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const roleName = call.request.params.name;
     const groupId = call.request.params.groupId ?? null;
-    if (!groupId) {
+    if (isNil(groupId)) {
       const query = { $and: [{ groupId: null }, { name: roleName }] };
       const nonGroupRoleDocuments = await Role.getInstance().countDocuments(query);
       if (nonGroupRoleDocuments > 0) {
@@ -44,5 +46,41 @@ export class RoleManager {
     return { createdRole };
   }
 
+  async patchRole(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+    const { id, name, permissions } = call.request.params;
+    let role = await Role.getInstance().findOne({ _id: id });
+    if (isNil(role)) {
+      throw new GrpcError(status.NOT_FOUND, `Role does not exist`);
+    }
+    merge(role, {
+      name,
+      permissions,
+    });
+    const updatedRole = await Role.getInstance().findByIdAndUpdate(id, role);
+    return { updatedRole };
+  }
+
+  async getRoles(call: ParsedRouterRequest) {
+    const { skip } = call.request.params ?? 0;
+    const { limit } = call.request.params ?? 25;
+    const { groupNames, search, sort } = call.request.params;
+    let query: any = {}, identifier
+    if (!isNil(groupNames)) {
+      query['group'] = { $in: groupNames };
+    }
+    if (!isNil(search)) {
+      identifier = escapeStringRegexp(search);
+      query['name'] = { $regex: `.*${identifier}.*`, $options: 'i' };
+    }
+
+    const roles = Role.getInstance().findMany(
+      query,
+      undefined,
+      skip,
+      limit,
+      sort,
+    );
+    return roles;
+  }
 
 }
