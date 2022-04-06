@@ -56,6 +56,7 @@ export class AdminHandlers {
         createGroup: this.groupManager.createGroup.bind(this),
         getGroupMemberships: this.groupManager.getGroupMemberships.bind(this),
         addGroupMembers: this.groupManager.addGroupMembers.bind(this),
+        getGroups: this.groupManager.getGroups.bind(this),
       })
       .catch((err: Error) => {
         console.log('Failed to register admin routes for module!');
@@ -269,14 +270,14 @@ export class AdminHandlers {
           path: '/role/:id',
           action: ConduitRouteActions.PATCH,
           urlParams: {
-            id: { type: RouteOptionType.String, required: true }
+            id: { type: RouteOptionType.String, required: true },
           },
           bodyParams: {
             name: ConduitString.Optional,
             permissions: {
               user: { type: TYPE.JSON, required: false },
               group: { type: TYPE.JSON, required: false },
-            }
+            },
           },
           name: 'PatchRole',
           description: 'Patch a role',
@@ -321,13 +322,33 @@ export class AdminHandlers {
           description: 'Creating group memberships',
         },
         new ConduitRouteReturnDefinition('GetGroupMemberships', {
-         memberships: ConduitJson.Required,
-         count: ConduitNumber.Required,
+          memberships: ConduitJson.Required,
+          count: ConduitNumber.Required,
         }),
         'getGroupMemberships',
       ),
+      constructConduitRoute(
+        {
+          path: '/groups',
+          action: ConduitRouteActions.GET,
+          queryParams: {
+            skip: ConduitNumber.Optional,
+            limit: ConduitNumber.Optional,
+            search: ConduitString.Optional,
+            sort: ConduitString.Optional,
+          },
+          name: 'GetGroups',
+          description: 'Get Groups',
+        },
+        new ConduitRouteReturnDefinition('GetGroups', {
+          groups: [Group.getInstance().fields],
+          count: ConduitNumber.Required,
+        }),
+        'getGroups',
+      ),
     ];
   }
+
   async getUsers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const { isActive, provider, search, sort } = call.request.params;
     const { skip } = call.request.params ?? 0;

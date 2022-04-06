@@ -7,6 +7,7 @@ import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
 import { User, Role, Group, GroupMembership } from '../models';
 import { populateArray } from '@conduit/chat/dist/utils';
+import escapeStringRegexp from 'escape-string-regexp';
 
 
 export class GroupManager {
@@ -105,5 +106,21 @@ export class GroupManager {
       throw new GrpcError(status.NOT_FOUND, `Group ${group.name} does not have members`);
     }
     return { memberships: groupMemberships, count: groupMemberships.length };
+  }
+
+  async getGroups(call: ParsedRouterRequest) {
+    const { skip } = call.request.params ?? 0;
+    const { limit } = call.request.params ?? 25;
+    let { sort, search } = call.request.params;
+
+    let query: any = {};
+    if (!isNil(search)) {
+      const name = escapeStringRegexp(search);
+      query['name'] = { $regex: `.*${name}.*`, $options: 'i' };
+    }
+
+    const groups = await Group.getInstance().findMany(query, undefined, skip, limit, sort);
+    const count = groups.length;
+    return { groups, count };
   }
 }
