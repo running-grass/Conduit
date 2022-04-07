@@ -201,13 +201,13 @@ export class GroupHandlers {
       });
 
     if (isNil(group)) {
-      throw new GrpcError(status.INTERNAL, 'Group does not exists');
+      throw new GrpcError(status.NOT_FOUND, 'Group does not exist');
     }
 
     // TODO What if invited user does not exist ?
     const users = await User.getInstance().findMany({ _id: { $in: ids } });
     if (users.length !== ids.length) {
-      throw new GrpcError(status.NOT_FOUND, 'Some user ids did not found');
+      throw new GrpcError(status.NOT_FOUND, 'Some users were not found');
     }
 
     const canInvite = await GroupUtils.canInvite(invitor._id, groupId)
@@ -217,12 +217,17 @@ export class GroupHandlers {
 
     if (canInvite) {
       for (const id of ids) {
-        await GroupUtils.addGroupUser(id, groupId);
+        if (await GroupUtils.isGroupMember(id, groupId)) {
+          throw new GrpcError(status.ALREADY_EXISTS, 'Cannot invite existing group user');
+        }
+        await GroupUtils.addGroupUser(id, groupId)
+          .catch((e: Error) => {
+            throw new GrpcError(status.INTERNAL, e.message);
+          });
       }
     } else {
-      throw new GrpcError(status.PERMISSION_DENIED, 'You dont have the appropriate permissions to invite');
+      throw new GrpcError(status.PERMISSION_DENIED, 'Permission denied');
     }
-
     return 'Invite has been sent';
   }
 

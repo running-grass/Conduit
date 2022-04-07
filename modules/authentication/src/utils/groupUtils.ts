@@ -14,17 +14,21 @@ export namespace GroupUtils {
     };
     const groupMembership = await GroupMembership.getInstance().create(membership)
       .catch((e: any) => {
-        throw new GrpcError(status.INTERNAL, e.message);
+        throw new Error(e.message);
       });
+
     const role = await Role.getInstance().findOne({
       name: 'User',
       group: groupId,
     }).catch((e: Error) => {
-      throw new GrpcError(status.INTERNAL, e.message);
+      throw new Error(e.message);
     });
+
     await RoleMembership.getInstance().create({
       user: userId,
       roles: [role!._id],
+    }).catch((e: any) => {
+      throw new Error(e.message);
     });
     return groupMembership;
   }
