@@ -16,9 +16,10 @@ import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
 import { ServiceAdmin } from './service';
 import { AuthUtils } from '../utils/auth';
-import { User, Service, Role, Group, GroupMembership } from '../models';
+import { User, Service, Role, Group, GroupMembership, RoleMembership } from '../models';
 import { RoleManager } from './roles';
 import { GroupManager } from './groups';
+import { GroupUtils } from '../utils/groupUtils';
 
 const escapeStringRegexp = require('escape-string-regexp');
 
@@ -407,6 +408,9 @@ export class AdminHandlers {
       isVerified: true,
     });
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
+
+    await GroupUtils.createDefaultRoleMembership(user,''); // when a user is created it belongs to 'general' group
+
     return 'Registration was successful';
   }
 

@@ -12,6 +12,7 @@ import { AuthUtils } from '../../utils/auth';
 import axios, { AxiosRequestConfig } from 'axios';
 import { Payload } from './interfaces/Payload';
 import { OAuth2Settings } from './interfaces/OAuth2Settings';
+import { GroupUtils } from '../../utils/groupUtils';
 
 export abstract class OAuth2<T extends Payload, S extends OAuth2Settings> {
   grpcSdk: ConduitGrpcSdk;
@@ -150,6 +151,7 @@ export abstract class OAuth2<T extends Payload, S extends OAuth2Settings> {
         [this.providerName]: payload,
         isVerified: true,
       });
+      await GroupUtils.createDefaultRoleMembership(user,'');
     }
     return user;
   }

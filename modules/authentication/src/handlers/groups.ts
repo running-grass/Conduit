@@ -4,11 +4,12 @@ import ConduitGrpcSdk, {
   ConfigController, GrpcError, ParsedRouterRequest,
   RoutingManager, UnparsedRouterResponse,
 } from '@conduitplatform/grpc-sdk';
-import { Group, GroupMembership, Role, User } from '../models';
+import { Group, GroupMembership, Role, RoleMembership, User } from '../models';
 import { isNil } from 'lodash';
 import { status } from '@grpc/grpc-js';
 import { GroupUtils } from '../utils/groupUtils';
 import checkPermissions = GroupUtils.checkPermissions;
+import createDefaultRoleMembership = GroupUtils.createDefaultRoleMembership;
 
 export class GroupHandlers {
 
@@ -18,12 +19,11 @@ export class GroupHandlers {
 
   async validate(): Promise<Boolean> {
     const config = ConfigController.getInstance().config;
-    if (config.local.enabled && config.groups.enabled) {
+    if (config.groups.enabled) {
       console.log(`Groups and Roles are active`);
       const role = await Role.getInstance().findOne({ name: 'User', group: '' });
       if (isNil(role))
         await Role.getInstance().create({ name: 'User', group: '' });
-
       return true;
     } else {
       console.log('Groups and Roles not active');
@@ -151,27 +151,41 @@ export class GroupHandlers {
         manageUsers: true,
       }, // the user who creates the group  has admin rights
     };
-    await Role.getInstance().create({
+    const ownerRole = await Role.getInstance().create({
       name: 'Owner',
       group: groupName,
       permissions: permissions,
+    }).catch((e: any) => {
+      throw new GrpcError(status.INTERNAL, e.message);
     }); // create a default Role in the group
 
-    const role = await Role.getInstance().create({
-      name: 'User',
-      group: groupName,
-    });
+
+    const role = await Role.getInstance().findOne({ $and: [{ name: 'User' }, { group: groupName }] })
+      .catch((e: any) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+
     if (isNil(role)) {
       await Role.getInstance().create({
         name: 'User',
         group: groupName,
-      }); // create a default Role in the group
+      }).catch((e: any) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+      // create a default Role in the group
     }
 
     await GroupMembership.getInstance().create({
       user: call.request.context.user._id,
       group: createdGroup._id,
       roles: ['Owner'],
+    }).catch((e: Error) => {
+      throw new GrpcError(status.INTERNAL, e.message);
+    });
+
+    await RoleMembership.getInstance().create({
+      user: call.request.context.user._id,
+      roles: [ownerRole._id]
     });
 
     return { createdGroup };

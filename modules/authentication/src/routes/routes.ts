@@ -363,6 +363,7 @@ export class AuthenticationRoutes {
       this.twitchHandlers.declareRoutes();
       enabled = true;
     }
+
     if (enabled) {
       this._routingManager.route(
         {

@@ -17,6 +17,7 @@ import { AccessToken, RefreshToken, Role, Token, User } from '../models';
 import { status } from '@grpc/grpc-js';
 import moment = require('moment');
 import { RoleMembership } from '../models/';
+import { GroupUtils } from '../utils/groupUtils';
 
 export class LocalHandlers {
   private emailModule: Email;
@@ -85,10 +86,8 @@ export class LocalHandlers {
       hashedPassword,
       isVerified: false,
     });
-    const query = { $and: [{ name: 'User' }, { group: '' }] };
-    const role: any = await Role.getInstance().findOne(query);
-    await RoleMembership.getInstance().create({ user: user._id, roles: [role._id] });
 
+    await GroupUtils.createDefaultRoleMembership(user,'');
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
     const config = ConfigController.getInstance().config;

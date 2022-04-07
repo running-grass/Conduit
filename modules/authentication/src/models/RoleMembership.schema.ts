@@ -13,11 +13,11 @@ const schema = {
     model: 'User',
     required: true,
   },
-  roles: {
-    type: [TYPE.Relation],
+  roles: [{
+    type: TYPE.Relation,
     model: 'Role',
     required: true,
-  },
+  }],
 };
 const schemaOptions = {
   timestamps: true,

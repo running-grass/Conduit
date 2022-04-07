@@ -1,4 +1,4 @@
-import { GroupMembership, Role } from '../models';
+import { GroupMembership, Role, User } from '../models';
 import { isNil } from 'lodash';
 import { RoleMembership } from '../models/RoleMembership.schema';
 
@@ -44,6 +44,13 @@ export namespace GroupUtils {
       }
     }
     return canOperate;
+  }
+
+  export async function createDefaultRoleMembership(user: User, group: string = '') {
+    const query = { $and: [{ name: 'User' }, { group: group }] };
+    const role: any = await Role.getInstance().findOne(query);
+    await RoleMembership.getInstance().create({ user: user._id, roles: [role._id] });
+    return;
   }
 
   export function populateArray(pop: any) {

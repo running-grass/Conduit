@@ -5,7 +5,7 @@ import ConduitGrpcSdk, {
 } from '@conduitplatform/grpc-sdk';
 import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
-import { User, Role, Group, GroupMembership } from '../models';
+import { User, Role, Group, GroupMembership, RoleMembership } from '../models';
 import escapeStringRegexp from 'escape-string-regexp';
 import { GroupUtils } from '../utils/groupUtils';
 
@@ -33,7 +33,6 @@ export class GroupManager {
     if (isNil(role)) {
       await Role.getInstance().create({ name: 'User', group: createdGroup.name });
     }
-
     return { createdGroup };
   }
 
@@ -74,7 +73,16 @@ export class GroupManager {
       if (count > 0) {
         throw new GrpcError(status.ALREADY_EXISTS, `Membership already exists`);
       }
+
+      const userRole = await Role.getInstance().findOne({ group: group.name, name: 'User' })
+        .catch((e: any) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
       membership.roles = ['User'];
+      await RoleMembership.getInstance().create({
+        user: membership.user,
+        roles: [userRole!._id],
+      });
       const createdMembership = await GroupMembership.getInstance().create(membership);
       retMemberships.push(createdMembership);
     }
