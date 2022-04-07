@@ -144,6 +144,7 @@ export class GroupHandlers {
     const permissions = {
       user: {},
       group: {
+        canModifyRole: true,
         canDelete: true,
         viewUsers: true,
         viewGroups: true,

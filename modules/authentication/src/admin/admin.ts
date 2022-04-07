@@ -13,7 +13,7 @@ import ConduitGrpcSdk, {
   TYPE, ConduitJson,
 } from '@conduitplatform/grpc-sdk';
 import { status } from '@grpc/grpc-js';
-import { isNil } from 'lodash';
+import { isNil, merge } from 'lodash';
 import { ServiceAdmin } from './service';
 import { AuthUtils } from '../utils/auth';
 import { User, Service, Role, Group, GroupMembership, RoleMembership } from '../models';
@@ -58,6 +58,7 @@ export class AdminHandlers {
         getGroupMemberships: this.groupManager.getGroupMemberships.bind(this),
         addGroupMembers: this.groupManager.addGroupMembers.bind(this),
         getGroups: this.groupManager.getGroups.bind(this),
+        changeUserGroupPermissions: this.changeUserPermissions.bind(this),
       })
       .catch((err: Error) => {
         console.log('Failed to register admin routes for module!');
@@ -288,6 +289,27 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
+          path: '/users/permissions',
+          action: ConduitRouteActions.PATCH,
+          bodyParams: {
+            userId: ConduitString.Required,
+            groupId: ConduitString.Optional,
+            permissions: {
+              user: { type: TYPE.JSON, required: false },
+              group: { type: TYPE.JSON, required: false },
+            },
+          },
+          name: 'ChangeUserPermissions',
+          description: 'Change permissions of a user',
+        },
+        new ConduitRouteReturnDefinition('ChangeUserPermissions', {
+          roleMembership: [RoleMembership.getInstance().fields],
+          count: ConduitNumber.Required,
+        }),
+        'changeUserPermissions',
+      ),
+      constructConduitRoute(
+        {
           path: '/group',
           action: ConduitRouteActions.POST,
           bodyParams: {
@@ -409,7 +431,7 @@ export class AdminHandlers {
     });
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
-    await GroupUtils.createDefaultRoleMembership(user,''); // when a user is created it belongs to 'general' group
+    await GroupUtils.createDefaultRoleMembership(user, ''); // when a user is created it belongs to 'general' group
 
     return 'Registration was successful';
   }
@@ -509,17 +531,46 @@ export class AdminHandlers {
     }
   }
 
-  // async createRole(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
-  //   const { name } = call.request.params;
-  //   const role = await UserRole.getInstance().findOne({ name });
-  //   if (!isNil(role)) {
-  //     throw new GrpcError(status.ALREADY_EXISTS, `Role ${role.name} already exists`);
-  //   }
-  //   const newRole = await UserRole.getInstance().create({
-  //     name: name,
-  //   })
-  //   return {
-  //     id: newRole._id
-  //   }
-  // }
+  async changeUserPermissions(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+    const { userId, groupId, permissions } = call.request.params;
+    const user = await User.getInstance().findOne({ _id: userId })
+      .catch((e: any) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    if (isNil(user)) {
+      throw new GrpcError(status.NOT_FOUND, 'User not found');
+    }
+
+    if (!isNil(groupId)) {
+      const group = await User.getInstance().findOne({ _id: groupId })
+        .catch((e: any) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
+      if (isNil(group)) {
+        throw new GrpcError(status.NOT_FOUND, 'Group not found');
+      }
+
+      const groupMembership = await GroupMembership.getInstance().findOne({ user: userId, group: groupId })
+        .catch((e: any) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
+      if (isNil(groupMembership)) {
+        throw new GrpcError(status.NOT_FOUND, 'User is not a member of this group');
+      }
+
+      const userRoles = groupMembership.roles;
+      const roles: Role[] = await Role.getInstance().findMany({ _id: { $in: userRoles } })
+        .catch((e: any) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
+      const permissionUnion = {  }
+      roles.forEach((role) => {
+        merge(permissionUnion, role.permissions)
+      })
+      return {  permissionUnion };
+    }
+
+    return 5 as any;
+
+  }
 }

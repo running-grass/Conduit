@@ -28,6 +28,11 @@ const schema = {
       },
     },
     group: {
+      canModifyRole: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
       canDelete: {
         type: TYPE.Boolean,
         default: false,
@@ -91,6 +96,8 @@ export class Role extends ConduitActiveSchema<Role> {
       viewUsers: boolean;
       viewGroups: boolean;
       manageUser: boolean;
+      canModifyRole: boolean;
+
     }
   };
   constructor(database: DatabaseProvider) {

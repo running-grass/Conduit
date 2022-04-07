@@ -38,18 +38,19 @@ export namespace GroupUtils {
     return true;
   }
 
+  // TODO Think if this function CREATE an invite or does a simple add in the group
   export async function canInvite(userId: string, group: Group): Promise<boolean> {
     const membership = await GroupMembership.getInstance().findOne({ user: userId, group: group._id },
       'roles',
       'roles',
     );
     if (!isNil(membership)) {
-      for (const role of membership!.roles) {
-        const actualRole = await Role.getInstance().findOne({ name: role, group: group.name })
+      for (const roleName of membership!.roles) {
+        const role = await Role.getInstance().findOne({ name: roleName, group: group.name })
           .catch((e: any) => {
             throw new Error(e.message);
           });
-        if (actualRole!.permissions.group.canInvite || actualRole!.permissions.user.canInvite)
+        if (role!.permissions.group.canInvite || role!.permissions.user.canInvite)
           return true;
       }
     }

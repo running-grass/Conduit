@@ -24,13 +24,13 @@ export class RoleManager {
       if (nonGroupRoleDocuments > 0) {
         throw new GrpcError(status.ABORTED, `Role already exists`);
       }
-      return await Role.getInstance().create({ name: roleName, groupId: null });
+      return await Role.getInstance().create({ name: roleName, group: '' });
     }
     const group = await Group.getInstance().findOne({ _id: groupId });
     if (isNil(group)) {
       throw new GrpcError(status.ABORTED, `You must create a group before you create a role`);
     }
-    const query = { $and: [{ name: roleName }, { groupId: groupId }] };
+    const query = { $and: [{ name: roleName }, { group: group.name }] };
     const role = await Role.getInstance().findOne(query)
       .catch((e) => {
         throw new GrpcError(status.INTERNAL, e.message);
@@ -40,7 +40,7 @@ export class RoleManager {
     }
     const createdRole = await Role.getInstance().create({
       name: roleName,
-      groupId: groupId,
+      group: group.name,
     });
 
     return { createdRole };
@@ -64,7 +64,7 @@ export class RoleManager {
     const { skip } = call.request.params ?? 0;
     const { limit } = call.request.params ?? 25;
     const { groupNames, search, sort } = call.request.params;
-    let query: any = {}, identifier
+    let query: any = {}, identifier;
     if (!isNil(groupNames)) {
       query['group'] = { $in: groupNames };
     }
@@ -81,6 +81,11 @@ export class RoleManager {
       sort,
     );
     return roles;
+  }
+
+  async changeUserPermissions() {
+
+
   }
 
 }
