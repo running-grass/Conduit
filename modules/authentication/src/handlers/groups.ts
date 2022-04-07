@@ -8,8 +8,6 @@ import { Group, GroupMembership, Role, RoleMembership, User } from '../models';
 import { isNil } from 'lodash';
 import { status } from '@grpc/grpc-js';
 import { GroupUtils } from '../utils/groupUtils';
-import checkPermissions = GroupUtils.checkPermissions;
-import createDefaultRoleMembership = GroupUtils.createDefaultRoleMembership;
 
 export class GroupHandlers {
 
@@ -144,11 +142,13 @@ export class GroupHandlers {
     });
 
     const permissions = {
+      user: {},
       group: {
         canDelete: true,
         viewUsers: true,
         viewGroups: true,
         manageUsers: true,
+        canInvite: true,
       }, // the user who creates the group  has admin rights
     };
     const ownerRole = await Role.getInstance().create({
@@ -185,7 +185,7 @@ export class GroupHandlers {
 
     await RoleMembership.getInstance().create({
       user: call.request.context.user._id,
-      roles: [ownerRole._id]
+      roles: [ownerRole._id],
     });
 
     return { createdGroup };
@@ -204,21 +204,24 @@ export class GroupHandlers {
       throw new GrpcError(status.INTERNAL, 'Group does not exists');
     }
 
+    // TODO What if invited user does not exist ?
     const users = await User.getInstance().findMany({ _id: { $in: ids } });
     if (users.length !== ids.length) {
       throw new GrpcError(status.NOT_FOUND, 'Some user ids did not found');
     }
 
-    checkPermissions(invitor._id, groupId, 'canInvite').then(async (canInvite: boolean) => {
-      if (canInvite) {
-        const ret = [];
-        for (const user of users) {
-          await GroupUtils.addGroupUser(user._id, groupId);
-        }
+    const canInvite = await GroupUtils.canInvite(invitor._id, groupId)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+
+    if (canInvite) {
+      for (const id of ids) {
+        await GroupUtils.addGroupUser(id, groupId);
       }
-    }).catch((err: any) => {
-      throw new GrpcError(status.PERMISSION_DENIED, err.message);
-    });
+    } else {
+      throw new GrpcError(status.PERMISSION_DENIED, 'You dont have the appropriate permissions to invite');
+    }
 
     return 'Invite has been sent';
   }

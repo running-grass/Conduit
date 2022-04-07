@@ -33,6 +33,11 @@ const schema = {
         default: false,
         required: true,
       },
+      canInvite: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
       viewUsers: {
         type: TYPE.Boolean,
         default: true,
@@ -81,6 +86,7 @@ export class Role extends ConduitActiveSchema<Role> {
       canInvite: boolean;
     },
     group: {
+      canInvite: boolean
       canDelete: boolean;
       viewUsers: boolean;
       viewGroups: boolean;

@@ -1,6 +1,8 @@
 import { GroupMembership, Role, User } from '../models';
 import { isNil } from 'lodash';
 import { RoleMembership } from '../models/RoleMembership.schema';
+import { status } from '@grpc/grpc-js';
+import { GrpcError } from '@conduitplatform/grpc-sdk';
 
 export namespace GroupUtils {
 
@@ -10,7 +12,20 @@ export namespace GroupUtils {
       roles: ['User'],
       group: groupId,
     };
-    const groupMembership = await GroupMembership.getInstance().create(membership);
+    const groupMembership = await GroupMembership.getInstance().create(membership)
+      .catch((e: any) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    const role = await Role.getInstance().findOne({
+      name: 'User',
+      group: groupId,
+    }).catch((e: Error) => {
+      throw new GrpcError(status.INTERNAL, e.message);
+    });
+    await RoleMembership.getInstance().create({
+      user: userId,
+      roles: [role!._id],
+    });
     return groupMembership;
   }
 
@@ -22,28 +37,22 @@ export namespace GroupUtils {
     return true;
   }
 
-  /*
-    -If invitor belongs to the group and have invitePermissions then he can invite
-    -Else, if it doesn't check if it has a 'general' role in the RoleMembershipSchema
-  */
-
-  export async function checkPermissions(userId: string, groupId: string, permission: string): Promise<boolean> {
-    let canOperate = true;
-    if (!isGroupMember(userId, groupId)) {
-      const roleMemberships: any = await RoleMembership.getInstance().findOne({ user: userId });
-      if (isNil(roleMemberships)) {  //
-        throw new Error('You do not have the appropriate role to invite');
+  export async function canInvite(userId: string, groupId: string) {
+    const membership = await GroupMembership.getInstance().findOne({ user: userId, group: groupId },
+      'roles',
+      'roles',
+    );
+    if (!isNil(membership)) {
+      for (const role of membership!.roles) {
+        const actualRole = await Role.getInstance().findOne({ name: role })
+          .catch((e: any) => {
+            throw new Error(e.message);
+          });
+        if (actualRole!.permissions.group.canInvite || actualRole!.permissions.user.canInvite)
+          return true;
       }
-      for (let membership of roleMemberships) {
-        for (let roleId of membership.roles) {
-          const actualRole: any = await Role.getInstance().findOne({ _id: roleId });
-          if (actualRole.permissions[permission]) {
-            canOperate = true;
-          }
-        }
-      }
+      return false;
     }
-    return canOperate;
   }
 
   export async function createDefaultRoleMembership(user: User, group: string = '') {
@@ -64,5 +73,5 @@ export namespace GroupUtils {
     }
     return pop;
   }
-
 }
+
