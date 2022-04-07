@@ -1,16 +1,13 @@
-import { GroupMembership, Role, User } from '../models';
+import { GroupMembership, RoleMembership, Group, Role, User } from '../models';
 import { isNil } from 'lodash';
-import { RoleMembership } from '../models/RoleMembership.schema';
-import { status } from '@grpc/grpc-js';
-import { GrpcError } from '@conduitplatform/grpc-sdk';
 
 export namespace GroupUtils {
 
-  export async function addGroupUser(userId: string, groupId: string) {
+  export async function addGroupUser(userId: string, group: Group) {
     const membership = {
       user: userId,
       roles: ['User'],
-      group: groupId,
+      group: group._id,
     };
     const groupMembership = await GroupMembership.getInstance().create(membership)
       .catch((e: any) => {
@@ -19,7 +16,7 @@ export namespace GroupUtils {
 
     const role = await Role.getInstance().findOne({
       name: 'User',
-      group: groupId,
+      group: group.name,
     }).catch((e: Error) => {
       throw new Error(e.message);
     });
@@ -41,22 +38,22 @@ export namespace GroupUtils {
     return true;
   }
 
-  export async function canInvite(userId: string, groupId: string) {
-    const membership = await GroupMembership.getInstance().findOne({ user: userId, group: groupId },
+  export async function canInvite(userId: string, group: Group): Promise<boolean> {
+    const membership = await GroupMembership.getInstance().findOne({ user: userId, group: group._id },
       'roles',
       'roles',
     );
     if (!isNil(membership)) {
       for (const role of membership!.roles) {
-        const actualRole = await Role.getInstance().findOne({ name: role })
+        const actualRole = await Role.getInstance().findOne({ name: role, group: group.name })
           .catch((e: any) => {
             throw new Error(e.message);
           });
         if (actualRole!.permissions.group.canInvite || actualRole!.permissions.user.canInvite)
           return true;
       }
-      return false;
     }
+    return false;
   }
 
   export async function createDefaultRoleMembership(user: User, group: string = '') {

@@ -210,7 +210,7 @@ export class GroupHandlers {
       throw new GrpcError(status.NOT_FOUND, 'Some users were not found');
     }
 
-    const canInvite = await GroupUtils.canInvite(invitor._id, groupId)
+    const canInvite = await GroupUtils.canInvite(invitor._id, group)
       .catch((e: Error) => {
         throw new GrpcError(status.INTERNAL, e.message);
       });
@@ -220,7 +220,7 @@ export class GroupHandlers {
         if (await GroupUtils.isGroupMember(id, groupId)) {
           throw new GrpcError(status.ALREADY_EXISTS, 'Cannot invite existing group user');
         }
-        await GroupUtils.addGroupUser(id, groupId)
+        await GroupUtils.addGroupUser(id, group)
           .catch((e: Error) => {
             throw new GrpcError(status.INTERNAL, e.message);
           });
