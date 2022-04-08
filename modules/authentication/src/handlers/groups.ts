@@ -1,13 +1,19 @@
 import ConduitGrpcSdk, {
   ConduitNumber,
-  ConduitRouteActions, ConduitRouteReturnDefinition, ConduitString,
-  ConfigController, GrpcError, ParsedRouterRequest,
-  RoutingManager, UnparsedRouterResponse,
+  ConduitRouteActions,
+  ConduitRouteReturnDefinition,
+  ConduitString,
+  ConfigController,
+  GrpcError,
+  ParsedRouterRequest,
+  RoutingManager,
+  UnparsedRouterResponse,
 } from '@conduitplatform/grpc-sdk';
 import { Group, GroupMembership, Role, RoleMembership, User } from '../models';
 import { isNil } from 'lodash';
 import { status } from '@grpc/grpc-js';
 import { GroupUtils } from '../utils/groupUtils';
+import { Status } from '@grpc/grpc-js/build/src/constants';
 
 export class GroupHandlers {
 
@@ -67,6 +73,20 @@ export class GroupHandlers {
     );
     this.routingManager.route(
       {
+        path: '/group/users',
+        action: ConduitRouteActions.DELETE,
+        description: `A client delete users from a specific group`,
+        bodyParams: {
+          groupId: ConduitString.Optional,
+          ids: [ConduitString.Required],
+        },
+        middlewares: ['authMiddleware'],
+      },
+      new ConduitRouteReturnDefinition('RemoveUsersFromGroup', 'String'),
+      this.removeUsersFromGroup.bind(this),
+    );
+    this.routingManager.route(
+      {
         path: '/group',
         action: ConduitRouteActions.POST,
         description: `Client creates a group`,
@@ -86,46 +106,75 @@ export class GroupHandlers {
     const { skip } = call.request.params ?? 0;
     const { limit } = call.request.params ?? 25;
 
-    const group = await Group.getInstance().findOne({ _id: groupId });
-    if (isNil(group)) {
-      throw new GrpcError(status.NOT_FOUND, 'Group not found');
+    let groupQuery;
+    if (!isNil(groupId)) {
+      const group = await Group.getInstance().findOne({ _id: groupId });
+      groupQuery = { group: group!.name };
+    } else {
+      groupQuery = { group: '' };
     }
-
-    const membership = await GroupMembership.getInstance().findOne({
-      group: groupId,
-      user: user._id,
-    });
-    // TODO Check if a user isn't member of a group if he can see the users of a group.
-    if (isNil(membership)) {
-      throw new GrpcError(status.PERMISSION_DENIED, 'You can not see the members of the group');
-    }
-
-    const roles: Role[] = await Role.getInstance().findMany({ name: { $in: membership.roles } });
-    let canListUsers = false;
-    for (const role of roles) {
-      const groupRole = await Role.getInstance().findOne({
-        group: group.name,
-        name: role.name,
+    const roles = await Role.getInstance().findMany(groupQuery)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
       });
-      if (groupRole!.permissions.group.viewUsers) {
-        canListUsers = true;
+
+    const roleIds = roles.map((role) => {
+      return role._id;
+    });
+
+    const roleMemberships: any = await RoleMembership.getInstance().findMany(
+      { $and: [{ role: { $in: roleIds } }, { user: user._id }] },
+      'role',
+      undefined,
+      undefined,
+      undefined,
+      'role',
+    ).catch((e: Error) => {
+      throw new GrpcError(status.INTERNAL, e.message);
+    });
+
+    let canViewUsers: boolean = false;
+    for (const roleMembership of roleMemberships) {
+      const specificPermission = roleMembership?.permissions?.user?.viewUsers;
+      if
+      if (roleMembership.role.permissions.user.viewUsers || specificPermission) {
+        canViewUsers = true;
         break;
       }
     }
-    if (!canListUsers) {
-      throw new GrpcError(status.PERMISSION_DENIED, 'You do not have the appropriate permissions to list the users');
-    }
 
-    const groupUsers = await GroupMembership.getInstance().findMany(
+    if (!canViewUsers) {
+      throw new GrpcError(status.PERMISSION_DENIED, 'No permission to view the users of this group');
+    }
+    const memberships = await GroupMembership.getInstance().findMany(
       { group: groupId },
       'user',
       skip,
       limit,
       sort,
-      ['user'],
+      'user',
     );
-    const count = groupUsers.length;
-    return { groupUsers, count };
+    const users = memberships.map((membership) => { return membership.user});
+
+    const count = users.length;
+    return { users, count };
+  }
+
+  async removeUsersFromGroup(call: ParsedRouterRequest) {
+    const { groupId, ids } = call.request.params;
+    const whoRemoves = call.request.context.user;
+    const group = await Group.getInstance().findOne({ _id: groupId })
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    const memberships = await GroupMembership.getInstance().findMany({ user: { $in: ids } })
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    if (memberships.length !== ids.length) {
+      throw new GrpcError(status.NOT_FOUND, 'Some users are not members of this group');
+    }
+    return 5 as any;
   }
 
   async createGroup(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
@@ -143,14 +192,17 @@ export class GroupHandlers {
     });
 
     const permissions = {
-      user: {},
+      user: {
+        canDelete: true,
+        canReset: true,
+        canInvite: true,
+        viewUsers: true,
+        manageUsers: true,
+      },
       group: {
         canModifyRole: true,
         canDelete: true,
-        viewUsers: true,
         viewGroups: true,
-        manageUsers: true,
-        canInvite: true,
       }, // the user who creates the group  has admin rights
     };
     const ownerRole = await Role.getInstance().create({
@@ -195,54 +247,55 @@ export class GroupHandlers {
 
   async inviteUser(call: ParsedRouterRequest) {
     // roles which invitor go to  give in the invited user
-    const { groupId, ids, roles } = call.request.params;
-    const invitor = call.request.context.user;
-    const group = await Group.getInstance().findOne({ _id: groupId })
-      .catch((e: Error) => {
-        throw new GrpcError(status.INTERNAL, e.message);
-      });
-
-    if (isNil(group)) {
-      throw new GrpcError(status.NOT_FOUND, 'Group does not exist');
-    }
-
-    // TODO What if invited user does not exist ?
-    const users = await User.getInstance().findMany({ _id: { $in: ids } });
-    if (users.length !== ids.length) {
-      throw new GrpcError(status.NOT_FOUND, 'Some users were not found');
-    }
-
-    let foundGroupRoles: Role[] = [];
-    if (!isNil(roles)) {
-      foundGroupRoles = await Role.getInstance().findMany({ $and: [{ name: { $in: { roles } } }, { group: group.name }] })
-        .catch((e: Error) => {
-          throw new GrpcError(status.INTERNAL, e.message);
-        });
-      if (foundGroupRoles.length !== roles.length) {
-        throw new GrpcError(status.NOT_FOUND, 'Some roles were not found');
-      }
-    }
-
-
-    const canInvite = await GroupUtils.canInvite(invitor._id, group)
-      .catch((e: Error) => {
-        throw new GrpcError(status.INTERNAL, e.message);
-      });
-
-    if (canInvite) {
-      for (const id of ids) {
-        if (await GroupUtils.isGroupMember(id, groupId)) {
-          throw new GrpcError(status.ALREADY_EXISTS, 'Cannot invite existing group user');
-        }
-        await GroupUtils.addGroupUser(id, group,foundGroupRoles)
-          .catch((e: Error) => {
-            throw new GrpcError(status.INTERNAL, e.message);
-          });
-      }
-    } else {
-      throw new GrpcError(status.PERMISSION_DENIED, 'Permission denied');
-    }
+    // const { groupId, ids, roles } = call.request.params;
+    // const invitor = call.request.context.user;
+    // const group = await Group.getInstance().findOne({ _id: groupId })
+    //   .catch((e: Error) => {
+    //     throw new GrpcError(status.INTERNAL, e.message);
+    //   });
+    //
+    // if (isNil(group)) {
+    //   throw new GrpcError(status.NOT_FOUND, 'Group does not exist');
+    // }
+    //
+    // // TODO What if invited user does not exist ?
+    // const users = await User.getInstance().findMany({ _id: { $in: ids } });
+    // if (users.length !== ids.length) {
+    //   throw new GrpcError(status.NOT_FOUND, 'Some users were not found');
+    // }
+    //
+    // let foundGroupRoles: Role[] = [];
+    // if (!isNil(roles)) {
+    //   foundGroupRoles = await Role.getInstance().findMany({ $and: [{ name: { $in: { roles } } }, { group: group.name }] })
+    //     .catch((e: Error) => {
+    //       throw new GrpcError(status.INTERNAL, e.message);
+    //     });
+    //   if (foundGroupRoles.length !== roles.length) {
+    //     throw new GrpcError(status.NOT_FOUND, 'Some roles were not found');
+    //   }
+    // }
+    //
+    //
+    // const canInvite = await GroupUtils.canInvite(invitor._id, group)
+    //   .catch((e: Error) => {
+    //     throw new GrpcError(status.INTERNAL, e.message);
+    //   });
+    //
+    // if (canInvite) {
+    //   for (const id of ids) {
+    //     if (await GroupUtils.isGroupMember(id, groupId)) {
+    //       throw new GrpcError(status.ALREADY_EXISTS, 'Cannot invite existing group user');
+    //     }
+    //     await GroupUtils.addGroupUser(id, group, foundGroupRoles)
+    //       .catch((e: Error) => {
+    //         throw new GrpcError(status.INTERNAL, e.message);
+    //       });
+    //   }
+    // } else {
+    //   throw new GrpcError(status.PERMISSION_DENIED, 'Permission denied');
+    // }
     return 'Invite has been sent';
   }
+
 
 }

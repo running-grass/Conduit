@@ -18,9 +18,7 @@ const schema = {
     model: 'Role',
     required: true,
   },
-  permissions: {
-
-  }
+  permissions: { type: TYPE.JSON },
 };
 const schemaOptions = {
   timestamps: true,
@@ -39,8 +37,9 @@ const collectionName = undefined;
 export class RoleMembership extends ConduitActiveSchema<RoleMembership> {
   private static _instance: RoleMembership;
   _id: string;
-  userId: string | User
-  role:  string |  Role;
+  userId: string | User;
+  role: string | Role;
+  permissions: any;
 
 
   private constructor(database: DatabaseProvider) {

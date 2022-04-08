@@ -36,7 +36,7 @@ export class GroupManager {
     return { createdGroup };
   }
 
-  async addGroupMembers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+  async addGroupMemberships(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const memberships = call.request.params.memberships;
     const retMemberships = [];
     for (let membership of memberships) {   //checks
@@ -110,6 +110,44 @@ export class GroupManager {
     return { memberships: groupMemberships, count: groupMemberships.length };
   }
 
+  async removeGroupMemberships(call: ParsedRouterRequest) {
+    const { ids, groupId } = call.request.params;
+    const group = await Group.getInstance().findOne({ _id: groupId }).catch((e: Error) => {
+      throw new GrpcError(status.INTERNAL, e.message);
+    });
+    if (isNil(group)) {
+      throw new GrpcError(status.NOT_FOUND, 'Group not found');
+    }
+    let query = { $and: [{ group: groupId }, { user: { $in: ids } }] };
+    const foundMemberships = await GroupMembership.getInstance().findMany(query)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    if (ids.length !== foundMemberships.length) {
+      throw new GrpcError(status.NOT_FOUND, 'Some users are not members of this group');
+    }
+
+    for (const membership of foundMemberships) {     // remove from RoleMembership table && from GroupMembership
+      const roleIds = await Role.getInstance().findMany(
+        { $and: [{ name: { $in: membership.roles } }, { group: group.name }] },
+        '_id',
+      ).catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+
+      await RoleMembership.getInstance().deleteMany({ $and: [{ _id: { $in: roleIds } }, { user: membership.user }] })
+        .catch((e: Error) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
+    }
+    await GroupMembership.getInstance().deleteMany(query)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+
+    return 'User were removed from the group';
+  }
+
   async getGroups(call: ParsedRouterRequest) {
     const { skip } = call.request.params ?? 0;
     const { limit } = call.request.params ?? 25;
@@ -124,5 +162,9 @@ export class GroupManager {
     const groups = await Group.getInstance().findMany(query, undefined, skip, limit, sort);
     const count = groups.length;
     return { groups, count };
+  }
+
+  async removeMembership() {
+
   }
 }

@@ -56,9 +56,10 @@ export class AdminHandlers {
         getRoles: this.roleManager.getRoles.bind(this),
         createGroup: this.groupManager.createGroup.bind(this),
         getGroupMemberships: this.groupManager.getGroupMemberships.bind(this),
-        addGroupMembers: this.groupManager.addGroupMembers.bind(this),
+        addGroupMemberships: this.groupManager.addGroupMemberships.bind(this),
+        removeGroupMemberships: this.groupManager.removeGroupMemberships.bind(this),
         getGroups: this.groupManager.getGroups.bind(this),
-        changeUserGroupPermissions: this.changeUserPermissions.bind(this),
+        changeUserGroupPermissions: this.changeUserGroupPermissions.bind(this),
       })
       .catch((err: Error) => {
         console.log('Failed to register admin routes for module!');
@@ -289,7 +290,7 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
-          path: '/users/permissions',
+          path: '/group/users/permissions',
           action: ConduitRouteActions.PATCH,
           bodyParams: {
             userId: ConduitString.Required,
@@ -299,14 +300,14 @@ export class AdminHandlers {
               group: { type: TYPE.JSON, required: false },
             },
           },
-          name: 'ChangeUserPermissions',
+          name: 'ChangeUserGroupPermissions',
           description: 'Change permissions of a user',
         },
-        new ConduitRouteReturnDefinition('ChangeUserPermissions', {
+        new ConduitRouteReturnDefinition('ChangeUserGroupPermissions', {
           roleMembership: [RoleMembership.getInstance().fields],
           count: ConduitNumber.Required,
         }),
-        'changeUserPermissions',
+        'changeUserGroupPermissions',
       ),
       constructConduitRoute(
         {
@@ -326,13 +327,17 @@ export class AdminHandlers {
           path: '/group/memberships',
           action: ConduitRouteActions.POST,
           bodyParams: {
-            memberships: { type: [TYPE.JSON], required: true },
+            memberships: [{
+              user: ConduitString.Required,
+              group: ConduitString.Required,
+              roles: { type: [TYPE.String], required: true },
+            }],
           },
           name: 'AddGroupMemberships',
-          description: 'Creating group memberships',
+          description: 'Add users to group',
         },
         new ConduitRouteReturnDefinition('AddGroupMemberships', GroupMembership.getInstance().fields),
-        'addGroupMembers',
+        'addGroupMemberships',
       ),
       constructConduitRoute(
         {
@@ -342,13 +347,27 @@ export class AdminHandlers {
             groupId: ConduitString.Optional,
           },
           name: 'GetGroupMemberships',
-          description: 'Creating group memberships',
+          description: 'Given a group this route fetches its members.',
         },
         new ConduitRouteReturnDefinition('GetGroupMemberships', {
           memberships: ConduitJson.Required,
           count: ConduitNumber.Required,
         }),
         'getGroupMemberships',
+      ),
+      constructConduitRoute(
+        {
+          path: '/group/memberships',
+          action: ConduitRouteActions.DELETE,
+          bodyParams: {
+            groupId: ConduitString.Required,
+            ids: [ConduitString.Required],
+          },
+          name: 'RemoveGroupMemberships',
+          description: 'Remove group memberships',
+        },
+        new ConduitRouteReturnDefinition('GetGroupMemberships', 'String'),
+        'removeGroupMemberships',
       ),
       constructConduitRoute(
         {
@@ -531,7 +550,7 @@ export class AdminHandlers {
     }
   }
 
-  async changeUserPermissions(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+  async changeUserGroupPermissions(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const { userId, groupId, permissions } = call.request.params;
     const user = await User.getInstance().findOne({ _id: userId })
       .catch((e: any) => {
@@ -542,7 +561,7 @@ export class AdminHandlers {
     }
 
     if (!isNil(groupId)) {
-      const group = await User.getInstance().findOne({ _id: groupId })
+      const group = await Group.getInstance().findOne({ _id: groupId })
         .catch((e: any) => {
           throw new GrpcError(status.INTERNAL, e.message);
         });
@@ -559,15 +578,18 @@ export class AdminHandlers {
       }
 
       const userRoles = groupMembership.roles;
-      const roles: Role[] = await Role.getInstance().findMany({ _id: { $in: userRoles } })
+      const roleIds: Role[] = await Role.getInstance().findMany({ name: { $in: userRoles }, group: group.name }, '_id')
         .catch((e: any) => {
           throw new GrpcError(status.INTERNAL, e.message);
         });
-
-
+      const filterQuery = { $and: [{ user: userId }, { role: { $in: roleIds } }] };
+      await RoleMembership.getInstance().updateMany(filterQuery, { permissions: permissions }, true)
+        .catch((e: Error) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
     }
-    return 5 as any;
 
+    return 5 as any;
 
   }
 }

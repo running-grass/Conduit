@@ -26,6 +26,16 @@ const schema = {
         default: false,
         required: true,
       },
+      viewUsers: {
+        type: TYPE.Boolean,
+        default: true,
+        required: true,
+      },
+      manageUsers: {
+        type: TYPE.Boolean,
+        default: false,
+        required: true,
+      },
     },
     group: {
       canModifyRole: {
@@ -38,22 +48,7 @@ const schema = {
         default: false,
         required: true,
       },
-      canInvite: {
-        type: TYPE.Boolean,
-        default: false,
-        required: true,
-      },
-      viewUsers: {
-        type: TYPE.Boolean,
-        default: true,
-        required: true,
-      },
       viewGroups: {
-        type: TYPE.Boolean,
-        default: false,
-        required: true,
-      },
-      manageUsers: {
         type: TYPE.Boolean,
         default: false,
         required: true,
@@ -89,13 +84,13 @@ export class Role extends ConduitActiveSchema<Role> {
       canDelete: boolean;
       canReset: boolean;
       canInvite: boolean;
+      viewUsers: boolean;
+      manageUser: boolean;
     },
     group: {
       canInvite: boolean
       canDelete: boolean;
-      viewUsers: boolean;
       viewGroups: boolean;
-      manageUser: boolean;
       canModifyRole: boolean;
 
     }
