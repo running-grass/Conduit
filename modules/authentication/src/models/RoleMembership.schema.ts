@@ -13,7 +13,7 @@ const schema = {
     model: 'User',
     required: true,
   },
-  roles: {
+  role: {
     type: TYPE.Relation,
     model: 'Role',
     required: true,
@@ -40,7 +40,7 @@ export class RoleMembership extends ConduitActiveSchema<RoleMembership> {
   private static _instance: RoleMembership;
   _id: string;
   userId: string | User
-  roles: string[] | Role[];
+  role:  string |  Role;
 
 
   private constructor(database: DatabaseProvider) {

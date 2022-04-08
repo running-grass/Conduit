@@ -19,7 +19,7 @@ export class RoleManager {
     const roleName = call.request.params.name;
     const groupId = call.request.params.groupId ?? null;
     if (isNil(groupId)) {
-      const query = { $and: [{ groupId: null }, { name: roleName }] };
+      const query = { $and: [{ group: '' }, { name: roleName }] };
       const nonGroupRoleDocuments = await Role.getInstance().countDocuments(query);
       if (nonGroupRoleDocuments > 0) {
         throw new GrpcError(status.ABORTED, `Role already exists`);
@@ -81,11 +81,6 @@ export class RoleManager {
       sort,
     );
     return roles;
-  }
-
-  async changeUserPermissions() {
-
-
   }
 
 }

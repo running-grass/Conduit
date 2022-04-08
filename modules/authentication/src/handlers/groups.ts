@@ -39,6 +39,7 @@ export class GroupHandlers {
         bodyParams: {
           groupId: ConduitString.Required,
           ids: [ConduitString.Required],
+          roles: [ConduitString.Required],
         },
       },
       new ConduitRouteReturnDefinition('InviteResponse', 'String'),
@@ -186,7 +187,7 @@ export class GroupHandlers {
 
     await RoleMembership.getInstance().create({
       user: call.request.context.user._id,
-      roles: [ownerRole._id],
+      role: ownerRole._id,
     });
 
     return { createdGroup };
@@ -194,7 +195,7 @@ export class GroupHandlers {
 
   async inviteUser(call: ParsedRouterRequest) {
     // roles which invitor go to  give in the invited user
-    const { groupId, ids } = call.request.params;
+    const { groupId, ids, roles } = call.request.params;
     const invitor = call.request.context.user;
     const group = await Group.getInstance().findOne({ _id: groupId })
       .catch((e: Error) => {
@@ -211,6 +212,18 @@ export class GroupHandlers {
       throw new GrpcError(status.NOT_FOUND, 'Some users were not found');
     }
 
+    let foundGroupRoles: Role[] = [];
+    if (!isNil(roles)) {
+      foundGroupRoles = await Role.getInstance().findMany({ $and: [{ name: { $in: { roles } } }, { group: group.name }] })
+        .catch((e: Error) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
+      if (foundGroupRoles.length !== roles.length) {
+        throw new GrpcError(status.NOT_FOUND, 'Some roles were not found');
+      }
+    }
+
+
     const canInvite = await GroupUtils.canInvite(invitor._id, group)
       .catch((e: Error) => {
         throw new GrpcError(status.INTERNAL, e.message);
@@ -221,7 +234,7 @@ export class GroupHandlers {
         if (await GroupUtils.isGroupMember(id, groupId)) {
           throw new GrpcError(status.ALREADY_EXISTS, 'Cannot invite existing group user');
         }
-        await GroupUtils.addGroupUser(id, group)
+        await GroupUtils.addGroupUser(id, group,foundGroupRoles)
           .catch((e: Error) => {
             throw new GrpcError(status.INTERNAL, e.message);
           });

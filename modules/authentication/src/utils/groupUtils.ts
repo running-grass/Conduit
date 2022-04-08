@@ -3,30 +3,32 @@ import { isNil } from 'lodash';
 
 export namespace GroupUtils {
 
-  export async function addGroupUser(userId: string, group: Group) {
+  export async function addGroupUser(userId: string, group: Group, groupRoles: Role[]) {
+    let roleNames = [];
+    roleNames = groupRoles.map((role) => {
+      return role.name;
+    });
+
     const membership = {
       user: userId,
-      roles: ['User'],
+      roles: roleNames,
       group: group._id,
     };
+
     const groupMembership = await GroupMembership.getInstance().create(membership)
       .catch((e: any) => {
         throw new Error(e.message);
       });
 
-    const role = await Role.getInstance().findOne({
-      name: 'User',
-      group: group.name,
-    }).catch((e: Error) => {
-      throw new Error(e.message);
-    });
+    for (const role of groupRoles) {
+      await RoleMembership.getInstance().create({
+        user: userId,
+        role: role!._id,
+      }).catch((e: any) => {
+        throw new Error(e.message);
+      });
+    }
 
-    await RoleMembership.getInstance().create({
-      user: userId,
-      roles: [role!._id],
-    }).catch((e: any) => {
-      throw new Error(e.message);
-    });
     return groupMembership;
   }
 
@@ -60,7 +62,15 @@ export namespace GroupUtils {
   export async function createDefaultRoleMembership(user: User, group: string = '') {
     const query = { $and: [{ name: 'User' }, { group: group }] };
     const role: any = await Role.getInstance().findOne(query);
-    await RoleMembership.getInstance().create({ user: user._id, roles: [role._id] });
+    if (isNil(role)) {
+      await Role.getInstance().create({
+        name: 'User',
+        group: '',
+      }).catch((e: any) => {
+        throw new Error(e.message);
+      });
+    }
+    await RoleMembership.getInstance().create({ user: user._id, role: role._id });
     return;
   }
 

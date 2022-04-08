@@ -59,31 +59,25 @@ export class GroupManager {
         throw new GrpcError(status.NOT_FOUND, 'Group not found');
       }
 
-      let roles = membership.roles;
+      let roles: string [] = membership.roles;
       if (isNil(roles)) {
         roles = ['User'];
       }
-      const foundRoles = await Role.getInstance().countDocuments({ name: { $in: roles } });
-      if (foundRoles === 0) {
+      const userRoles = await Role.getInstance().findMany({ $and: [{ name: { $in: roles } }, { group: group.name }] });
+      if (userRoles.length !== roles.length) {
         throw new GrpcError(status.ALREADY_EXISTS, `Some roles does not exist`);
       }
 
-      const query = { $and: [{ user: userId }, { group: groupId }] };
+      let query = { $and: [{ user: userId }, { group: groupId }] };
       const count = await GroupMembership.getInstance().countDocuments(query);
       if (count > 0) {
         throw new GrpcError(status.ALREADY_EXISTS, `Membership already exists`);
       }
-
-      const userRole = await Role.getInstance().findOne({ group: group.name, name: 'User' })
-        .catch((e: any) => {
+      const createdMembership = await GroupUtils.addGroupUser(membership.user, group, userRoles)
+        .catch((e: Error) => {
           throw new GrpcError(status.INTERNAL, e.message);
         });
-      membership.roles = ['User'];
-      await RoleMembership.getInstance().create({
-        user: membership.user,
-        roles: [userRole!._id],
-      });
-      const createdMembership = await GroupMembership.getInstance().create(membership);
+
       retMemberships.push(createdMembership);
     }
 

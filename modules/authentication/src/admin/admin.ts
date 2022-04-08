@@ -563,14 +563,11 @@ export class AdminHandlers {
         .catch((e: any) => {
           throw new GrpcError(status.INTERNAL, e.message);
         });
-      const permissionUnion = {  }
-      roles.forEach((role) => {
-        merge(permissionUnion, role.permissions)
-      })
-      return {  permissionUnion };
-    }
 
+
+    }
     return 5 as any;
+
 
   }
 }
