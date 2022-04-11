@@ -32,7 +32,16 @@ export class GroupManager {
   }
 
   async createGroup(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
-    const groupName = call.request.params.name;
+    const { groupName, parentGroup } = call.request.params;
+
+    const parent = await Group.getInstance().findOne({ _id: parentGroup })
+      .catch((e) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    if (isNil(parent)) {
+      throw new GrpcError(status.NOT_FOUND, `Group ${parent!.name} not exist`);
+    }
+
     const group = await Group.getInstance().findOne({ name: groupName })
       .catch((e) => {
         throw new GrpcError(status.INTERNAL, e.message);
@@ -43,6 +52,7 @@ export class GroupManager {
 
     const createdGroup = await Group.getInstance().create({
       name: groupName,
+      parentGroup: parentGroup
     });
 
     const role = await Role.getInstance().findOne({ $and: [{ name: 'User' }, { group: createdGroup._id }] });  //default User role

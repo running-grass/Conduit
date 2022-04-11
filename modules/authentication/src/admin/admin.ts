@@ -337,6 +337,7 @@ export class AdminHandlers {
           action: ConduitRouteActions.POST,
           bodyParams: {
             name: ConduitString.Required,
+            parentGroup: ConduitString.Required,
           },
           name: 'CreateGroup',
           description: 'Creates a new Group',

@@ -94,6 +94,7 @@ export class GroupHandlers {
         middlewares: ['authMiddleware'],
         bodyParams: {
           name: ConduitString.Required,
+          parentGroup: ConduitString.Required,
         },
       },
       new ConduitRouteReturnDefinition('GroupResponse', Group.getInstance().fields),
@@ -116,47 +117,51 @@ export class GroupHandlers {
 
   async getGroupUsers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
     const { user } = call.request.context;
-    const { groupId, sort } = call.request.params;
+    let { groupId, sort } = call.request.params;
     const { skip } = call.request.params ?? 0;
     const { limit } = call.request.params ?? 25;
-
-    if (!isNil(groupId)) {
-      const group = await Group.getInstance().findOne({ _id: groupId });
-      if (isNil(group)) {
-        throw new GrpcError(status.INTERNAL, 'Group not exists');
-      }
-      const viewerMembership = await GroupMembership.getInstance()
-        .findOne(
-          { group: groupId, user: user._id },
-          undefined,
-          'roles',
-        );
-      if (isNil(viewerMembership)) {
-        throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
-      }
-      let canViewUsers = viewerMembership?.permissions?.user?.viewUsers;
-      if (canViewUsers) {
-        const users = await GroupUtils.listGroupUsers(skip, limit, sort, groupId);
-        const count = users.length;
-        return { users, count };
-      } else if (!isNil(canViewUsers) && !canViewUsers) {
-        throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
-      } else {
-        for (const role of viewerMembership!.roles as Role[]) {
-          canViewUsers = role.permissions.user.viewUsers;
-          if (canViewUsers) {
-            canViewUsers = true;
-            break;
-          }
-        }
-        if (!canViewUsers) {
-          throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
-        }
-        const users = await GroupUtils.listGroupUsers(skip, limit, sort, groupId);
-        const count = users.length;
-        return { users, count };
-      }
+    let membershipQuery: any = {};
+    let group = null;
+    if (isNil(groupId)) {
+      groupId = null
+      membershipQuery = { group: null, user: user._id };
+    } else {
+      group = await Group.getInstance().findOne({ _id: groupId });
+      membershipQuery = { group: group!._id ?? null, user: user._id };
     }
+    const viewerMembership = await GroupMembership.getInstance()
+      .findOne(
+        membershipQuery,
+        undefined,
+        'roles',
+      );
+    if (isNil(viewerMembership)) {
+      throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
+    }
+
+    let canViewUsers = viewerMembership?.permissions?.user?.viewUsers;
+    if (canViewUsers) {
+      const users = await GroupUtils.listGroupUsers(skip, limit, sort,groupId );
+      const count = users.length;
+      return { users, count };
+    } else if (!isNil(canViewUsers) && !canViewUsers) {
+      throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
+    } else {
+      for (const role of viewerMembership!.roles as Role[]) {
+        canViewUsers = role.permissions.user.viewUsers;
+        if (canViewUsers) {
+          canViewUsers = true;
+          break;
+        }
+      }
+      if (!canViewUsers) {
+        throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
+      }
+      const users = await GroupUtils.listGroupUsers(skip, limit, sort, groupId);
+      const count = users.length;
+      return { users, count };
+    }
+
     return 5 as any;
     // TODO can a member of a parent group see the members of the subgroup?
   }

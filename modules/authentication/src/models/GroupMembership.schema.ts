@@ -23,6 +23,10 @@ const schema = {
     type: TYPE.Relation,
     model: 'Group',
   },
+  parentGroup: {
+    type: TYPE.Relation,
+    model: 'Group',
+  },
   permissions: { type: TYPE.JSON },
 };
 const schemaOptions = {
@@ -44,6 +48,7 @@ export class GroupMembership extends ConduitActiveSchema<GroupMembership> {
   user: string | User;
   roles: string[] | Role[];
   group: string | Group;
+  parentGroup: string | Group;
   permissions: any;
 
 
