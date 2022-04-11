@@ -106,11 +106,25 @@ export namespace GroupUtils {
     await GroupMembership.getInstance().deleteMany({
       $and: [{ user: { $in: ids } }, { group: groupId }],
     })
-      .catch((e:Error) => {
+      .catch((e: Error) => {
         throw new Error(e.message);
       });
   }
 
+  export async function deleteGroup(group: Group) {
+    await GroupMembership.getInstance().deleteMany({ group: group._id })
+      .catch((e: Error) => {
+        throw new Error(e.message);
+      });
+    await Role.getInstance().deleteMany({ group: group.name })
+      .catch((e: Error) => {
+        throw new Error(e.message);
+      });
+    await Group.getInstance().deleteOne({ _id: group._id })
+      .catch((e: Error) => {
+        throw new Error(e.message);
+      });
+  }
 }
 
 
