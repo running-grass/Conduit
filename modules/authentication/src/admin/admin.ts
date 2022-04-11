@@ -359,7 +359,7 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
-          path: '/group/memberships',
+          path: '/group/users',
           action: ConduitRouteActions.POST,
           bodyParams: {
             memberships: [{
@@ -376,7 +376,7 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
-          path: '/group/memberships',
+          path: '/group/users',
           action: ConduitRouteActions.GET,
           queryParams: {
             groupId: ConduitString.Optional,
@@ -385,7 +385,7 @@ export class AdminHandlers {
           description: 'Given a group this route fetches its members.',
         },
         new ConduitRouteReturnDefinition('GetGroupMemberships', {
-          memberships: ConduitJson.Required,
+          users: [User.getInstance().fields],
           count: ConduitNumber.Required,
         }),
         'getGroupMemberships',

@@ -91,14 +91,20 @@ export namespace GroupUtils {
   }
 
   export async function listGroupUsers(skip: number, limit: number, sort: any, groupId: string) {
-    const users = await GroupMembership.getInstance().findMany(
+    const memberships = await GroupMembership.getInstance().findMany(
       { group: groupId },
       'user',
       skip,
       limit,
       sort,
       'user',
-    );
+    ).catch((e: Error) => {
+      throw new Error(e.message);
+    });
+
+    const users = memberships.map((membership) => {
+      return membership.user;
+    });
     return users;
   }
 

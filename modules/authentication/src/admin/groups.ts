@@ -146,18 +146,12 @@ export class GroupManager {
     if (isNil(group)) {
       throw new GrpcError(status.ALREADY_EXISTS, `Group does not exist`);
     }
-    const groupMemberships = await GroupMembership.getInstance().findMany(
-      { group: groupId },
-      undefined,
-      skip,
-      limit,
-      sort,
-      populate,
-    );
-    if (isNil(groupMemberships)) {
-      throw new GrpcError(status.NOT_FOUND, `Group ${group.name} does not have members`);
-    }
-    return { memberships: groupMemberships, count: groupMemberships.length };
+    const users = await GroupUtils.listGroupUsers(skip, limit, sort, groupId)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    const count = users.length;
+    return { users, count };
   }
 
   async removeGroupMemberships(call: ParsedRouterRequest) {

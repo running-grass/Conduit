@@ -54,7 +54,7 @@ export class GroupHandlers {
     );
     this.routingManager.route(
       {
-        path: '/group/memberships',
+        path: '/group/users',
         action: ConduitRouteActions.GET,
         description: `A client lists all the members of the groups that he belongs to if he has the permission to do this.`,
         queryParams: {
@@ -74,7 +74,7 @@ export class GroupHandlers {
     );
     this.routingManager.route(
       {
-        path: '/group/memberships',
+        path: '/group/users',
         action: ConduitRouteActions.DELETE,
         description: `A client delete users from a specific group`,
         bodyParams: {
@@ -112,7 +112,6 @@ export class GroupHandlers {
       new ConduitRouteReturnDefinition('GroupResponse', 'String'),
       this.deleteGroup.bind(this),
     );
-
   }
 
   async getGroupUsers(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
