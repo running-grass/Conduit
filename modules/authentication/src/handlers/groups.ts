@@ -9,7 +9,7 @@ import ConduitGrpcSdk, {
   RoutingManager,
   UnparsedRouterResponse,
 } from '@conduitplatform/grpc-sdk';
-import { Group, GroupMembership, Role, RoleMembership, User } from '../models';
+import { Group, GroupMembership, Role, User } from '../models';
 import { isNil } from 'lodash';
 import { status } from '@grpc/grpc-js';
 import { GroupUtils } from '../utils/groupUtils';
@@ -73,7 +73,7 @@ export class GroupHandlers {
     );
     this.routingManager.route(
       {
-        path: '/group/users',
+        path: '/group/memberships',
         action: ConduitRouteActions.DELETE,
         description: `A client delete users from a specific group`,
         bodyParams: {
@@ -109,55 +109,43 @@ export class GroupHandlers {
     let groupQuery;
     if (!isNil(groupId)) {
       const group = await Group.getInstance().findOne({ _id: groupId });
+      if (isNil(group)) {
+        throw new GrpcError(status.INTERNAL, 'Group not exists');
+      }
       groupQuery = { group: group!.name };
     } else {
       groupQuery = { group: '' };
     }
-    const roles = await Role.getInstance().findMany(groupQuery)
-      .catch((e: Error) => {
-        throw new GrpcError(status.INTERNAL, e.message);
-      });
+    const viewerMembership = await GroupMembership.getInstance()
+      .findOne(
+        { group: groupId, user: user._id },
+        'roles',
+        'roles',
+      );
+    if (isNil(viewerMembership)) {
+      throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
+    }
+    let canViewUsers = viewerMembership?.permissions?.user?.viewUsers ?? false;
+    if (canViewUsers) {
+      const users = await GroupUtils.listGroupUsers(skip, limit, sort, groupId);
+      const count = users.length;
+      return { users, count };
+    }
 
-    const roleIds = roles.map((role) => {
-      return role._id;
-    });
-
-    const roleMemberships: any = await RoleMembership.getInstance().findMany(
-      { $and: [{ role: { $in: roleIds } }, { user: user._id }] },
-      'role',
-      undefined,
-      undefined,
-      undefined,
-      'role',
-    ).catch((e: Error) => {
-      throw new GrpcError(status.INTERNAL, e.message);
-    });
-
-    let canViewUsers: boolean = false;
-    for (const roleMembership of roleMemberships) {
-      const specificPermission = roleMembership?.permissions?.user?.viewUsers;
-      if
-      if (roleMembership.role.permissions.user.viewUsers || specificPermission) {
+    for (const role of viewerMembership!.roles as Role[]) {
+      canViewUsers = role.permissions.user.viewUsers;
+      if (canViewUsers) {
         canViewUsers = true;
         break;
       }
     }
-
     if (!canViewUsers) {
-      throw new GrpcError(status.PERMISSION_DENIED, 'No permission to view the users of this group');
+      throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
     }
-    const memberships = await GroupMembership.getInstance().findMany(
-      { group: groupId },
-      'user',
-      skip,
-      limit,
-      sort,
-      'user',
-    );
-    const users = memberships.map((membership) => { return membership.user});
-
+    const users = await GroupUtils.listGroupUsers(skip, limit, sort, groupId);
     const count = users.length;
     return { users, count };
+    // TODO can a member of a parent group see the members of the subgroup?
   }
 
   async removeUsersFromGroup(call: ParsedRouterRequest) {
@@ -167,14 +155,41 @@ export class GroupHandlers {
       .catch((e: Error) => {
         throw new GrpcError(status.INTERNAL, e.message);
       });
-    const memberships = await GroupMembership.getInstance().findMany({ user: { $in: ids } })
+    if (isNil(group)) {
+      throw new GrpcError(status.NOT_FOUND, 'Group not found');
+    }
+    const memberships = await GroupMembership.getInstance().findMany({ user: { $in: ids }, group: groupId })
       .catch((e: Error) => {
         throw new GrpcError(status.INTERNAL, e.message);
       });
     if (memberships.length !== ids.length) {
       throw new GrpcError(status.NOT_FOUND, 'Some users are not members of this group');
     }
-    return 5 as any;
+    const whoRemovesMembership = await GroupMembership.getInstance().findOne(
+      { $and: [{ group: groupId }, { user: whoRemoves._id }] },
+      undefined,
+      'roles',
+    )
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+
+    const overridePerms = whoRemovesMembership!.permissions;
+    if (overridePerms?.user?.canDelete) {
+      await GroupUtils.removeUsersFromGroup(ids, groupId)
+        .catch((e: Error) => {
+          throw new GrpcError(status.INTERNAL, e.message);
+        });
+      return 'Users were removed from group';
+    } else {
+      for (const role of whoRemovesMembership!.roles as Role[]) {
+        if (role.permissions.user.canDelete) {
+          await GroupUtils.removeUsersFromGroup(ids, groupId);
+          return 'Users were removed from group';
+        }
+      }
+    }
+    throw new GrpcError(status.PERMISSION_DENIED, 'Permission Denied');
   }
 
   async createGroup(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
@@ -232,14 +247,9 @@ export class GroupHandlers {
     await GroupMembership.getInstance().create({
       user: call.request.context.user._id,
       group: createdGroup._id,
-      roles: ['Owner'],
+      roles: [ownerRole._id],
     }).catch((e: Error) => {
       throw new GrpcError(status.INTERNAL, e.message);
-    });
-
-    await RoleMembership.getInstance().create({
-      user: call.request.context.user._id,
-      role: ownerRole._id,
     });
 
     return { createdGroup };

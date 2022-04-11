@@ -13,10 +13,9 @@ import ConduitGrpcSdk, {
   ConfigController,
 } from '@conduitplatform/grpc-sdk';
 import * as templates from '../templates';
-import { AccessToken, RefreshToken, Role, Token, User } from '../models';
+import { AccessToken, RefreshToken, Token, User } from '../models';
 import { status } from '@grpc/grpc-js';
 import moment = require('moment');
-import { RoleMembership } from '../models/';
 import { GroupUtils } from '../utils/groupUtils';
 
 export class LocalHandlers {
@@ -87,7 +86,7 @@ export class LocalHandlers {
       isVerified: false,
     });
 
-    await GroupUtils.createDefaultRoleMembership(user,'');
+    await GroupUtils.createDefaultRole(user, '');
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
     const config = ConfigController.getInstance().config;

@@ -5,7 +5,7 @@ import ConduitGrpcSdk, {
 } from '@conduitplatform/grpc-sdk';
 import { status } from '@grpc/grpc-js';
 import { isNil } from 'lodash';
-import { User, Role, Group, GroupMembership, RoleMembership } from '../models';
+import { User, Role, Group, GroupMembership } from '../models';
 import escapeStringRegexp from 'escape-string-regexp';
 import { GroupUtils } from '../utils/groupUtils';
 
@@ -13,6 +13,22 @@ import { GroupUtils } from '../utils/groupUtils';
 export class GroupManager {
 
   constructor(private readonly grpcSdk: ConduitGrpcSdk) {
+  }
+
+  async getGroups(call: ParsedRouterRequest) {
+    const { skip } = call.request.params ?? 0;
+    const { limit } = call.request.params ?? 25;
+    let { sort, search } = call.request.params;
+
+    let query: any = {};
+    if (!isNil(search)) {
+      const name = escapeStringRegexp(search);
+      query['name'] = { $regex: `.*${name}.*`, $options: 'i' };
+    }
+
+    const groups = await Group.getInstance().findMany(query, undefined, skip, limit, sort);
+    const count = groups.length;
+    return { groups, count };
   }
 
   async createGroup(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
@@ -34,6 +50,35 @@ export class GroupManager {
       await Role.getInstance().create({ name: 'User', group: createdGroup.name });
     }
     return { createdGroup };
+  }
+
+  async deleteGroups(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+    const { ids } = call.request.params;
+    let query = { _id: { $in: ids } };
+    const groups = await Group.getInstance().findMany(query)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    if (groups.length != ids.length) {
+      throw new GrpcError(status.NOT_FOUND, 'Some groups were not found');
+    }
+    await Group.getInstance().deleteMany(query)
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    const groupNames = groups.map((group) => {
+      return group.name;
+    });
+
+    await GroupMembership.getInstance().deleteMany({ group: { $in: ids } })
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    await Role.getInstance().deleteMany({ group: { $in: groupNames } })
+      .catch((e: Error) => {
+        throw new GrpcError(status.INTERNAL, e.message);
+      });
+    return 'Groups were deleted';
   }
 
   async addGroupMemberships(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
@@ -59,12 +104,14 @@ export class GroupManager {
         throw new GrpcError(status.NOT_FOUND, 'Group not found');
       }
 
-      let roles: string [] = membership.roles;
-      if (isNil(roles)) {
-        roles = ['User'];
+      let roleNames: string [] = membership.roles;
+      let roleIds;
+      if (isNil(roleNames)) {
+        const defaultGroupRole = await Role.getInstance().findOne({ name: 'User', group: group.name });
+        roleIds = [defaultGroupRole!._id];
       }
-      const userRoles = await Role.getInstance().findMany({ $and: [{ name: { $in: roles } }, { group: group.name }] });
-      if (userRoles.length !== roles.length) {
+      let userRoles = await Role.getInstance().findMany({ $and: [{ name: { $in: roleNames } }, { group: group.name }] });
+      if (userRoles.length !== roleNames.length) {
         throw new GrpcError(status.ALREADY_EXISTS, `Some roles does not exist`);
       }
 
@@ -73,7 +120,10 @@ export class GroupManager {
       if (count > 0) {
         throw new GrpcError(status.ALREADY_EXISTS, `Membership already exists`);
       }
-      const createdMembership = await GroupUtils.addGroupUser(membership.user, group, userRoles)
+      roleIds = userRoles.map((role) => {
+        return role._id;
+      });
+      const createdMembership = await GroupUtils.addGroupUser(membership.user, group, roleIds)
         .catch((e: Error) => {
           throw new GrpcError(status.INTERNAL, e.message);
         });
@@ -126,45 +176,12 @@ export class GroupManager {
     if (ids.length !== foundMemberships.length) {
       throw new GrpcError(status.NOT_FOUND, 'Some users are not members of this group');
     }
-
-    for (const membership of foundMemberships) {     // remove from RoleMembership table && from GroupMembership
-      const roleIds = await Role.getInstance().findMany(
-        { $and: [{ name: { $in: membership.roles } }, { group: group.name }] },
-        '_id',
-      ).catch((e: Error) => {
-        throw new GrpcError(status.INTERNAL, e.message);
-      });
-
-      await RoleMembership.getInstance().deleteMany({ $and: [{ _id: { $in: roleIds } }, { user: membership.user }] })
-        .catch((e: Error) => {
-          throw new GrpcError(status.INTERNAL, e.message);
-        });
-    }
     await GroupMembership.getInstance().deleteMany(query)
       .catch((e: Error) => {
         throw new GrpcError(status.INTERNAL, e.message);
       });
 
-    return 'User were removed from the group';
+    return 'Users were removed from the group';
   }
 
-  async getGroups(call: ParsedRouterRequest) {
-    const { skip } = call.request.params ?? 0;
-    const { limit } = call.request.params ?? 25;
-    let { sort, search } = call.request.params;
-
-    let query: any = {};
-    if (!isNil(search)) {
-      const name = escapeStringRegexp(search);
-      query['name'] = { $regex: `.*${name}.*`, $options: 'i' };
-    }
-
-    const groups = await Group.getInstance().findMany(query, undefined, skip, limit, sort);
-    const count = groups.length;
-    return { groups, count };
-  }
-
-  async removeMembership() {
-
-  }
 }

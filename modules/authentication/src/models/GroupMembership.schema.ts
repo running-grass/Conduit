@@ -5,23 +5,25 @@ import {
 } from '@conduitplatform/grpc-sdk';
 import { User } from './User.schema';
 import { Group } from './Group.schema';
+import { Role } from './Role.schema';
 
 const schema = {
   _id: TYPE.ObjectId,
-    user: {
-      type: TYPE.Relation,
-      model: 'User',
-      required: true,
-    },
-    roles: {
-      type: [TYPE.String],
-      required: true,
-    },
-    group: {
-      type: TYPE.Relation,
-      model: 'Group',
-      required: true,
-    },
+  user: {
+    type: TYPE.Relation,
+    model: 'User',
+    required: true,
+  },
+  roles: [{
+    type: TYPE.Relation,
+    model: 'Role',
+    required: true,
+  }],
+  group: {
+    type: TYPE.Relation,
+    model: 'Group',
+  },
+  permissions: { type: TYPE.JSON },
 };
 const schemaOptions = {
   timestamps: true,
@@ -39,9 +41,10 @@ const collectionName = undefined;
 export class GroupMembership extends ConduitActiveSchema<GroupMembership> {
   private static _instance: GroupMembership;
   _id: string;
-  user: string | User
-  roles: string[];
+  user: string | User;
+  roles: string[] | Role[];
   group: string | Group;
+  permissions: any;
 
 
   private constructor(database: DatabaseProvider) {

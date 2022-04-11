@@ -151,7 +151,7 @@ export abstract class OAuth2<T extends Payload, S extends OAuth2Settings> {
         [this.providerName]: payload,
         isVerified: true,
       });
-      await GroupUtils.createDefaultRoleMembership(user,'');
+      await GroupUtils.createDefaultRole(user,'');
     }
     return user;
   }

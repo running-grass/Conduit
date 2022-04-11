@@ -1,34 +1,21 @@
-import { GroupMembership, RoleMembership, Group, Role, User } from '../models';
+import { GroupMembership, Group, Role, User } from '../models';
 import { isNil } from 'lodash';
+import { GrpcError } from '@conduitplatform/grpc-sdk';
+import { status } from '@grpc/grpc-js';
 
 export namespace GroupUtils {
 
-  export async function addGroupUser(userId: string, group: Group, groupRoles: Role[]) {
-    let roleNames = [];
-    roleNames = groupRoles.map((role) => {
-      return role.name;
-    });
+  export async function addGroupUser(userId: string, group: Group, groupRoles: string[]) {
 
     const membership = {
       user: userId,
-      roles: roleNames,
+      roles: groupRoles,
       group: group._id,
     };
-
     const groupMembership = await GroupMembership.getInstance().create(membership)
       .catch((e: any) => {
         throw new Error(e.message);
       });
-
-    for (const role of groupRoles) {
-      await RoleMembership.getInstance().create({
-        user: userId,
-        role: role!._id,
-      }).catch((e: any) => {
-        throw new Error(e.message);
-      });
-    }
-
     return groupMembership;
   }
 
@@ -59,18 +46,35 @@ export namespace GroupUtils {
     return false;
   }
 
-  export async function createDefaultRoleMembership(user: User, group: string = '') {
+  export async function createDefaultRole(user: User, group: string = '') {
     const query = { $and: [{ name: 'User' }, { group: group }] };
-    const role: any = await Role.getInstance().findOne(query);
+    let foundGroup;
+    let role: any = await Role.getInstance().findOne(query);
     if (isNil(role)) {
-      await Role.getInstance().create({
+      role = await Role.getInstance().create({
         name: 'User',
         group: '',
       }).catch((e: any) => {
         throw new Error(e.message);
       });
     }
-    await RoleMembership.getInstance().create({ user: user._id, role: role._id });
+
+    foundGroup = await Group.getInstance().findOne({ name: group })
+      .catch((e: Error) => {
+        throw  new GrpcError(status.INTERNAL, e.message);
+      });
+    let groupId = null;
+    if (!isNil(foundGroup)) {
+      groupId = foundGroup._id;
+    }
+    await GroupMembership.getInstance().create({
+      user: user._id,
+      group: groupId,
+      roles: [role._id],
+    })
+      .catch((e: Error) => {
+        throw  new GrpcError(status.INTERNAL, e.message);
+      });
     return;
   }
 
@@ -85,5 +89,28 @@ export namespace GroupUtils {
     }
     return pop;
   }
+
+  export async function listGroupUsers(skip: number, limit: number, sort: any, groupId: string) {
+    const users = await GroupMembership.getInstance().findMany(
+      { group: groupId },
+      'user',
+      skip,
+      limit,
+      sort,
+      'user',
+    );
+    return users;
+  }
+
+  export async function removeUsersFromGroup(ids: string[], groupId: Group) {
+    await GroupMembership.getInstance().deleteMany({
+      $and: [{ user: { $in: ids } }, { group: groupId }],
+    })
+      .catch((e:Error) => {
+        throw new Error(e.message);
+      });
+  }
+
 }
+
 

@@ -16,7 +16,7 @@ import { status } from '@grpc/grpc-js';
 import { isNil, merge } from 'lodash';
 import { ServiceAdmin } from './service';
 import { AuthUtils } from '../utils/auth';
-import { User, Service, Role, Group, GroupMembership, RoleMembership } from '../models';
+import { User, Service, Role, Group, GroupMembership } from '../models';
 import { RoleManager } from './roles';
 import { GroupManager } from './groups';
 import { GroupUtils } from '../utils/groupUtils';
@@ -54,12 +54,15 @@ export class AdminHandlers {
         createRole: this.roleManager.createRole.bind(this),
         patchRole: this.roleManager.patchRole.bind(this),
         getRoles: this.roleManager.getRoles.bind(this),
+
         createGroup: this.groupManager.createGroup.bind(this),
+        getGroups: this.groupManager.getGroups.bind(this),
+        deleteGroups: this.groupManager.deleteGroups.bind(this),
+
         getGroupMemberships: this.groupManager.getGroupMemberships.bind(this),
         addGroupMemberships: this.groupManager.addGroupMemberships.bind(this),
         removeGroupMemberships: this.groupManager.removeGroupMemberships.bind(this),
-        getGroups: this.groupManager.getGroups.bind(this),
-        changeUserGroupPermissions: this.changeUserGroupPermissions.bind(this),
+        //changeUserGroupPermissions: this.changeUserGroupPermissions.bind(this),
       })
       .catch((err: Error) => {
         console.log('Failed to register admin routes for module!');
@@ -239,7 +242,7 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
-          path: '/roles',
+          path: '/group/roles',
           action: ConduitRouteActions.GET,
           queryParams: {
             skip: ConduitNumber.Optional,
@@ -249,14 +252,14 @@ export class AdminHandlers {
             groupNames: { type: [TYPE.String], required: false },
           },
           name: 'GetRoles',
-          description: 'Fetching Roles',
+          description: 'Fetching Roles of a Group',
         },
         new ConduitRouteReturnDefinition('GetRoles', Role.getInstance().fields),
         'getRoles',
       ),
       constructConduitRoute(
         {
-          path: '/role',
+          path: '/group/role',
           action: ConduitRouteActions.POST,
           bodyParams: {
             name: ConduitString.Required,
@@ -270,7 +273,7 @@ export class AdminHandlers {
       ),
       constructConduitRoute(
         {
-          path: '/role/:id',
+          path: '/group/role/:id',
           action: ConduitRouteActions.PATCH,
           urlParams: {
             id: { type: RouteOptionType.String, required: true },
@@ -288,26 +291,45 @@ export class AdminHandlers {
         new ConduitRouteReturnDefinition('PatchRole', Role.getInstance().fields),
         'patchRole',
       ),
+      // constructConduitRoute(
+      //   {
+      //     path: '/group/users/permissions',
+      //     action: ConduitRouteActions.PATCH,
+      //     bodyParams: {
+      //       userId: ConduitString.Required,
+      //       groupId: ConduitString.Optional,
+      //       permissions: {
+      //         user: { type: TYPE.JSON, required: false },
+      //         group: { type: TYPE.JSON, required: false },
+      //       },
+      //     },
+      //     name: 'ChangeUserGroupPermissions',
+      //     description: 'Change permissions of a user',
+      //   },
+      //   new ConduitRouteReturnDefinition('ChangeUserGroupPermissions', {
+      //     roleMembership: [RoleMembership.getInstance().fields],
+      //     count: ConduitNumber.Required,
+      //   }),
+      //   'changeUserGroupPermissions',
+      // ),
       constructConduitRoute(
         {
-          path: '/group/users/permissions',
-          action: ConduitRouteActions.PATCH,
-          bodyParams: {
-            userId: ConduitString.Required,
-            groupId: ConduitString.Optional,
-            permissions: {
-              user: { type: TYPE.JSON, required: false },
-              group: { type: TYPE.JSON, required: false },
-            },
+          path: '/groups',
+          action: ConduitRouteActions.GET,
+          queryParams: {
+            skip: ConduitNumber.Optional,
+            limit: ConduitNumber.Optional,
+            search: ConduitString.Optional,
+            sort: ConduitString.Optional,
           },
-          name: 'ChangeUserGroupPermissions',
-          description: 'Change permissions of a user',
+          name: 'GetGroups',
+          description: 'Get Groups',
         },
-        new ConduitRouteReturnDefinition('ChangeUserGroupPermissions', {
-          roleMembership: [RoleMembership.getInstance().fields],
+        new ConduitRouteReturnDefinition('GetGroups', {
+          groups: [Group.getInstance().fields],
           count: ConduitNumber.Required,
         }),
-        'changeUserGroupPermissions',
+        'getGroups',
       ),
       constructConduitRoute(
         {
@@ -317,10 +339,23 @@ export class AdminHandlers {
             name: ConduitString.Required,
           },
           name: 'CreateGroup',
-          description: 'Creates a new user group',
+          description: 'Creates a new Group',
         },
         new ConduitRouteReturnDefinition('CreateGroup', Group.getInstance().fields),
         'createGroup',
+      ),
+      constructConduitRoute(
+        {
+          path: '/groups',
+          action: ConduitRouteActions.DELETE,
+          bodyParams: {
+            ids: { type: [TYPE.String], required: true }
+          },
+          name: 'DeleteGroups',
+          description: 'Deleting Groups',
+        },
+        new ConduitRouteReturnDefinition('DeleteGroups', 'String'),
+        'deleteGroups',
       ),
       constructConduitRoute(
         {
@@ -368,25 +403,6 @@ export class AdminHandlers {
         },
         new ConduitRouteReturnDefinition('GetGroupMemberships', 'String'),
         'removeGroupMemberships',
-      ),
-      constructConduitRoute(
-        {
-          path: '/groups',
-          action: ConduitRouteActions.GET,
-          queryParams: {
-            skip: ConduitNumber.Optional,
-            limit: ConduitNumber.Optional,
-            search: ConduitString.Optional,
-            sort: ConduitString.Optional,
-          },
-          name: 'GetGroups',
-          description: 'Get Groups',
-        },
-        new ConduitRouteReturnDefinition('GetGroups', {
-          groups: [Group.getInstance().fields],
-          count: ConduitNumber.Required,
-        }),
-        'getGroups',
       ),
     ];
   }
@@ -450,7 +466,7 @@ export class AdminHandlers {
     });
     this.grpcSdk.bus?.publish('authentication:register:user', JSON.stringify(user));
 
-    await GroupUtils.createDefaultRoleMembership(user, ''); // when a user is created it belongs to 'general' group
+    await GroupUtils.createDefaultRole(user, ''); // when a user is created it belongs to 'general' group
 
     return 'Registration was successful';
   }
@@ -550,46 +566,42 @@ export class AdminHandlers {
     }
   }
 
-  async changeUserGroupPermissions(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
-    const { userId, groupId, permissions } = call.request.params;
-    const user = await User.getInstance().findOne({ _id: userId })
-      .catch((e: any) => {
-        throw new GrpcError(status.INTERNAL, e.message);
-      });
-    if (isNil(user)) {
-      throw new GrpcError(status.NOT_FOUND, 'User not found');
-    }
-
-    if (!isNil(groupId)) {
-      const group = await Group.getInstance().findOne({ _id: groupId })
-        .catch((e: any) => {
-          throw new GrpcError(status.INTERNAL, e.message);
-        });
-      if (isNil(group)) {
-        throw new GrpcError(status.NOT_FOUND, 'Group not found');
-      }
-
-      const groupMembership = await GroupMembership.getInstance().findOne({ user: userId, group: groupId })
-        .catch((e: any) => {
-          throw new GrpcError(status.INTERNAL, e.message);
-        });
-      if (isNil(groupMembership)) {
-        throw new GrpcError(status.NOT_FOUND, 'User is not a member of this group');
-      }
-
-      const userRoles = groupMembership.roles;
-      const roleIds: Role[] = await Role.getInstance().findMany({ name: { $in: userRoles }, group: group.name }, '_id')
-        .catch((e: any) => {
-          throw new GrpcError(status.INTERNAL, e.message);
-        });
-      const filterQuery = { $and: [{ user: userId }, { role: { $in: roleIds } }] };
-      await RoleMembership.getInstance().updateMany(filterQuery, { permissions: permissions }, true)
-        .catch((e: Error) => {
-          throw new GrpcError(status.INTERNAL, e.message);
-        });
-    }
-
-    return 5 as any;
-
-  }
+  // async changeUserGroupPermissions(call: ParsedRouterRequest): Promise<UnparsedRouterResponse> {
+  //   const { userId, groupId, permissions } = call.request.params;
+  //   const user = await User.getInstance().findOne({ _id: userId })
+  //     .catch((e: any) => {
+  //       throw new GrpcError(status.INTERNAL, e.message);
+  //     });
+  //   if (isNil(user)) {
+  //     throw new GrpcError(status.NOT_FOUND, 'User not found');
+  //   }
+  //
+  //   if (!isNil(groupId)) {
+  //     const group = await Group.getInstance().findOne({ _id: groupId })
+  //       .catch((e: any) => {
+  //         throw new GrpcError(status.INTERNAL, e.message);
+  //       });
+  //     if (isNil(group)) {
+  //       throw new GrpcError(status.NOT_FOUND, 'Group not found');
+  //     }
+  //
+  //     const groupMembership = await GroupMembership.getInstance().findOne({ user: userId, group: groupId })
+  //       .catch((e: any) => {
+  //         throw new GrpcError(status.INTERNAL, e.message);
+  //       });
+  //     if (isNil(groupMembership)) {
+  //       throw new GrpcError(status.NOT_FOUND, 'User is not a member of this group');
+  //     }
+  //
+  //     const userRoles = groupMembership.roles;
+  //     const roleIds: Role[] = await Role.getInstance().findMany({ name: { $in: userRoles }, group: group.name }, '_id')
+  //       .catch((e: any) => {
+  //         throw new GrpcError(status.INTERNAL, e.message);
+  //       });
+  //     const filterQuery = { $and: [{ user: userId }, { role: { $in: roleIds } }] };
+  //   }
+  //
+  //   return 5 as any;
+  //
+  // }
 }
