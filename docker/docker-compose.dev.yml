@@ -1,0 +1,58 @@
+version: "3.9"
+services:
+  redis:
+    image: redis
+    platform: linux/arm64/v8
+    networks:
+      - conduit
+  mongo:
+    image: mongo
+    platform: linux/arm64/v8
+    networks:
+      - conduit
+  core:
+    image: "ghcr.io/conduitplatform/conduit:${IMAGE_TAG}"
+    platform: linux/arm64/v8
+    networks:
+      - conduit
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REGISTER_NAME: 'false'
+
+  database:
+    image: "ghcr.io/conduitplatform/database:${IMAGE_TAG}"
+    platform: linux/arm64/v8
+    networks:
+      - conduit
+    environment:
+      databaseURL: mongodb://mongo/conduit
+      REGISTER_NAME: 'true'
+      CONDUIT_SERVER: core:55152
+
+  authentication:
+    image: "ghcr.io/conduitplatform/authentication:${IMAGE_TAG}"
+    platform: linux/arm64/v8
+    networks:
+      - conduit
+    depends_on:
+      - database
+      - core
+    environment:
+      CONDUIT_SERVER: core:55152
+      REGISTER_NAME: 'true'
+
+  admin:
+    image: "ghcr.io/conduitplatform/conduit-ui:${IMAGE_TAG}"
+    platform: linux/arm64/v8
+    ports:
+      - "8080:8080"
+    networks:
+      - conduit
+    environment:
+      CONDUIT_URL: http://localhost:3000
+      MASTER_KEY: M4ST3RK3Y
+networks:
+  conduit:
