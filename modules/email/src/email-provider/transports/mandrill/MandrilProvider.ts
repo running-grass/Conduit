@@ -5,7 +5,7 @@ import { Mandrill } from 'mandrill-api';
 import { Template } from '../../interfaces/Template';
 import { CreateEmailTemplate } from '../../interfaces/CreateEmailTemplate';
 import { MandrillBuilder } from './mandrillBuilder';
-import { getHBValues } from '../../parse-test/getHBValues';
+import { getHBValues } from '../../../parse-test/getHBValues';
 import { UpdateEmailTemplate } from '../../interfaces/UpdateEmailTemplate';
 import { MandrillTemplate } from '../../interfaces/mandrill/MandrillTemplate';
 

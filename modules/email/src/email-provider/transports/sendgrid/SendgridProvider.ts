@@ -5,7 +5,7 @@ import { Client } from '@sendgrid/client';
 import { Template } from '../../interfaces/Template';
 import { CreateEmailTemplate } from '../../interfaces/CreateEmailTemplate';
 import { SendgridMailBuilder } from './sendgridMailBuilder';
-import { getHBValues } from '../../parse-test/getHBValues';
+import { getHBValues } from '../../../parse-test/getHBValues';
 import { UpdateEmailTemplate } from '../../interfaces/UpdateEmailTemplate';
 import { SendgridTemplate } from '../../interfaces/sendgrid/SendgridTemplate';
 

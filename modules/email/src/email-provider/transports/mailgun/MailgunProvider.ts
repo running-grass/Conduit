@@ -6,7 +6,7 @@ import { Template } from '../../interfaces/Template';
 import { UpdateEmailTemplate } from '../../interfaces/UpdateEmailTemplate';
 import { EmailBuilderClass } from '../../models/EmailBuilderClass';
 import { EmailProviderClass } from '../../models/EmailProviderClass';
-import { getHBValues } from '../../parse-test/getHBValues';
+import { getHBValues } from '../../../parse-test/getHBValues';
 import { initialize as initializeMailgun } from './mailgun';
 import { MailgunConfig } from './mailgun.config';
 import { MailgunMailBuilder } from './mailgunMailBuilder';
